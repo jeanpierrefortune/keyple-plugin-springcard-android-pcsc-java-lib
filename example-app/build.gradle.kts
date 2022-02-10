@@ -18,8 +18,8 @@ android {
     buildToolsVersion("30.0.2")
 
     defaultConfig {
-        applicationId("org.calypsonet.keyple.plugin.springcard-pcsclike.example")
-        minSdkVersion(19)
+        applicationId("com.springcard.keyple.plugin.pcsclike.example")
+        minSdkVersion(21)
         targetSdkVersion(29)
         versionName(project.version.toString())
 
@@ -73,7 +73,7 @@ dependencies {
     implementation("org.eclipse.keyple:keyple-common-java-api:2.0.+") { isChanging = true }
     implementation("org.eclipse.keyple:keyple-service-java-lib:2.0.1")
     implementation("org.eclipse.keyple:keyple-service-resource-java-lib:2.0.1")
-    implementation("org.eclipse.keyple:keyple-card-calypso-java-lib:2.0.3")
+    implementation("org.eclipse.keyple:keyple-card-calypso-java-lib:2.1.0")
     implementation("org.eclipse.keyple:keyple-util-java-lib:2.+") { isChanging = true }
 
     /*

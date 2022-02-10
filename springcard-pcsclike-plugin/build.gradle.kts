@@ -22,25 +22,8 @@ android {
     buildFeatures {
         viewBinding = true
     }
-    buildTypes {
-        release {
-            // These values are defined only for the release build, which
-            // is typically used for full builds and continuous builds.
-            buildConfigField("String", "BUILD_TIME", "\"${minutesSinceEpoch}\"")
-            resValue("string", "build_time", "${minutesSinceEpoch}")
-            ...
-        }
-        debug {
-            // Use static values for incremental builds to ensure that
-            // resource files and BuildConfig aren't rebuilt with each run.
-            // If these rebuild dynamically, they can interfere with
-            // Apply Changes as well as Gradle UP-TO-DATE checks.
-            buildConfigField("String", "BUILD_TIME", "\"0\"")
-            resValue("string", "build_time", "0")
-        }
-    }
     defaultConfig {
-        minSdkVersion(19)
+        minSdkVersion(21)
         targetSdkVersion(29)
         versionName(project.version.toString())
 

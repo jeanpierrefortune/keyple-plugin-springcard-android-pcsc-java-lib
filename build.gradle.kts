@@ -43,12 +43,12 @@ tasks {
     spotless {
         kotlin{
             target("**/*.kt")
-            ktlint()
-            licenseHeaderFile("${project.rootDir}/LICENSE_HEADER")
+            ktfmt()
+            licenseHeaderFile("${project.rootDir}/SPRINGCARD_LICENSE_HEADER")
         }
         java {
             target("**/src/**/*.java")
-            licenseHeaderFile("${project.rootDir}/LICENSE_HEADER")
+            licenseHeaderFile("${project.rootDir}/SPRINGCARD_LICENSE_HEADER")
             importOrder("java", "javax", "org", "com", "")
             removeUnusedImports()
             googleJavaFormat()
