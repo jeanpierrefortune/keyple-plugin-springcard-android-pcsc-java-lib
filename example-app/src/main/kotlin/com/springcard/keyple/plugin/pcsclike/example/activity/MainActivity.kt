@@ -325,7 +325,9 @@ class MainActivity : AbstractExampleActivity(), PluginObserverSpi, BleDeviceScan
     runCardReadTransaction(selectionsResponse, true)
   }
 
-  private fun runCardReadTransactionWithoutSam(selectionsResponse: ScheduledCardSelectionsResponse) {
+  private fun runCardReadTransactionWithoutSam(
+      selectionsResponse: ScheduledCardSelectionsResponse
+  ) {
     runCardReadTransaction(selectionsResponse, false)
   }
 
@@ -344,104 +346,101 @@ class MainActivity : AbstractExampleActivity(), PluginObserverSpi, BleDeviceScan
         val selectionsResult =
             cardSelectionManager.parseScheduledCardSelectionsResponse(selectionsResponse)
 
-        if (selectionsResult.activeSelectionIndex != -1) {
-          addResultEvent("Selection successful")
-          val calypsoCard = selectionsResult.activeSmartCard as CalypsoCard
+        val calypsoCard = selectionsResult.activeSmartCard as CalypsoCard
 
-          /*
-           * Retrieve the data read from the parser updated during the selection process
-           */
-          val efEnvironmentHolder =
-              calypsoCard.getFileBySfi(CalypsoClassicInfo.SFI_EnvironmentAndHolder)
-          addActionEvent("Read environment and holder data")
+        addResultEvent(
+            "Selection successful of card ${ByteArrayUtil.toHex(calypsoCard.applicationSerialNumber)}")
 
-          addResultEvent(
-              "Environment and Holder file: ${
-                            ByteArrayUtil.toHex(
-                                efEnvironmentHolder.data.content
-                            )
-                        }")
+        /*
+         * Retrieve the data read from the parser updated during the selection process
+         */
+        val efEnvironmentHolder =
+            calypsoCard.getFileBySfi(CalypsoClassicInfo.SFI_EnvironmentAndHolder)
+        addActionEvent("Read environment and holder data")
 
-          addHeaderEvent("2nd card exchange: read the event log file")
+        addResultEvent(
+            "Environment and Holder file: ${
+                          ByteArrayUtil.toHex(
+                              efEnvironmentHolder.data.content
+                          )
+                      }")
 
-          val cardTransaction =
-              if (withSam) {
-                addActionEvent("Create a secured card transaction with SAM")
+        addHeaderEvent("2nd card exchange: read the event log file")
 
-                // Configure the card resource service to provide an adequate SAM for future secure
-                // operations.
-                // We suppose here, we use a Identive contact PC/SC reader as card reader.
-                val androidPcscPlugin =
-                    SmartCardServiceProvider.getService().getPlugin(AndroidPcscPlugin.PLUGIN_NAME)
-                setupCardResourceService(
-                    androidPcscPlugin,
-                    CalypsoClassicInfo.SAM_READER_NAME_REGEX,
-                    CalypsoClassicInfo.SAM_PROFILE_NAME)
+        val cardTransaction =
+            if (withSam) {
+              addActionEvent("Create a secured card transaction with SAM")
 
-                /*
-                 * Create secured card transaction.
-                 *
-                 * check the availability of the SAM doing a ATR based selection, open its physical and
-                 * logical channels and keep it open
-                 */
-                calypsoCardExtensionProvider.createCardTransaction(
-                    cardReader, calypsoCard, getSecuritySettings())
-              } else {
-                // Create unsecured card transaction
-                calypsoCardExtensionProvider.createCardTransactionWithoutSecurity(
-                    cardReader, calypsoCard)
-              }
+              // Configure the card resource service to provide an adequate SAM for future secure
+              // operations.
+              // We suppose here, we use a Identive contact PC/SC reader as card reader.
+              val androidPcscPlugin =
+                  SmartCardServiceProvider.getService().getPlugin(AndroidPcscPlugin.PLUGIN_NAME)
+              setupCardResourceService(
+                  androidPcscPlugin,
+                  CalypsoClassicInfo.SAM_READER_NAME_REGEX,
+                  CalypsoClassicInfo.SAM_PROFILE_NAME)
 
-          /*
-           * Prepare the reading order and keep the associated parser for later use once the
-           * transaction has been processed.
-           */
-          cardTransaction.prepareReadRecordFile(
-              CalypsoClassicInfo.SFI_EventLog, CalypsoClassicInfo.RECORD_NUMBER_1.toInt())
+              /*
+               * Create secured card transaction.
+               *
+               * check the availability of the SAM doing a ATR based selection, open its physical and
+               * logical channels and keep it open
+               */
+              calypsoCardExtensionProvider.createCardTransaction(
+                  cardReader, calypsoCard, getSecuritySettings())
+            } else {
+              // Create unsecured card transaction
+              calypsoCardExtensionProvider.createCardTransactionWithoutSecurity(
+                  cardReader, calypsoCard)
+            }
 
-          cardTransaction.prepareReadRecordFile(
-              CalypsoClassicInfo.SFI_Counter1, CalypsoClassicInfo.RECORD_NUMBER_1.toInt())
+        /*
+         * Prepare the reading order and keep the associated parser for later use once the
+         * transaction has been processed.
+         */
+        cardTransaction.prepareReadRecordFile(
+            CalypsoClassicInfo.SFI_EventLog, CalypsoClassicInfo.RECORD_NUMBER_1.toInt())
 
-          /*
-           * Actual card communication: send the prepared read order, then close the channel
-           * with the card
-           */
-          addActionEvent("Process card Command for counter and event logs reading")
+        cardTransaction.prepareReadRecordFile(
+            CalypsoClassicInfo.SFI_Counter1, CalypsoClassicInfo.RECORD_NUMBER_1.toInt())
 
-          if (withSam) {
-            addActionEvent("Process card Opening session for transactions")
-            cardTransaction.processOpening(WriteAccessLevel.LOAD)
-            addResultEvent("Opening session: SUCCESS")
-            val counter = readCounter(selectionsResult)
-            val eventLog = ByteArrayUtil.toHex(readEventLog(selectionsResult))
+        /*
+         * Actual card communication: send the prepared read order, then close the channel
+         * with the card
+         */
+        addActionEvent("Process card Command for counter and event logs reading")
 
-            addActionEvent("Process card Closing session")
-            cardTransaction.processClosing()
-            addResultEvent("Closing session: SUCCESS")
+        if (withSam) {
+          addActionEvent("Process card Opening session for transactions")
+          cardTransaction.processOpening(WriteAccessLevel.LOAD)
+          addResultEvent("Opening session: SUCCESS")
+          val counter = readCounter(selectionsResult)
+          val eventLog = ByteArrayUtil.toHex(readEventLog(selectionsResult))
 
-            // In secured reading, value read elements can only be trusted if the session is closed
-            // without error.
-            addResultEvent("Counter value: $counter")
-            addResultEvent("EventLog file: $eventLog")
-          } else {
-            cardTransaction.processCardCommands()
-            addResultEvent("Counter value: ${readCounter(selectionsResult)}")
-            addResultEvent(
-                "EventLog file: ${
-                                ByteArrayUtil.toHex(
-                                    readEventLog(
-                                        selectionsResult
-                                    )
-                                )
-                            }")
-          }
+          addActionEvent("Process card Closing session")
+          cardTransaction.processClosing()
+          addResultEvent("Closing session: SUCCESS")
 
-          addResultEvent("End of the Calypso card processing.")
-          addResultEvent("You can remove the card now")
+          // In secured reading, value read elements can only be trusted if the session is closed
+          // without error.
+          addResultEvent("Counter value: $counter")
+          addResultEvent("EventLog file: $eventLog")
         } else {
+          cardTransaction.processCardCommands()
+          addResultEvent("Counter value: ${readCounter(selectionsResult)}")
           addResultEvent(
-              "The selection of the card has failed. Should not have occurred due to the MATCHED_ONLY selection mode.")
+              "EventLog file: ${
+                              ByteArrayUtil.toHex(
+                                  readEventLog(
+                                      selectionsResult
+                                  )
+                              )
+                          }")
         }
+
+        addResultEvent("End of the Calypso card processing.")
+        addResultEvent("You can remove the card now")
       } catch (e: KeyplePluginException) {
         Timber.e(e)
         addResultEvent("Exception: ${e.message}")
