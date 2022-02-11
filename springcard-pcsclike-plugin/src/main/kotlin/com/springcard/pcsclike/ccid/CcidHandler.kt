@@ -33,9 +33,6 @@ internal class CcidHandler(private val scardReaderList: SCardReaderList) {
   internal lateinit var ccidSecure: CcidSecure
     private set
 
-  private val TAG: String
-    get() = this::class.java.simpleName
-
   /* Secondary Constructor */
 
   constructor(scardDevice: SCardReaderList, parameters: CcidSecureParameters) : this(scardDevice) {

@@ -46,6 +46,7 @@ import org.calypsonet.terminal.reader.selection.CardSelectionResult
 import org.calypsonet.terminal.reader.selection.ScheduledCardSelectionsResponse
 import org.eclipse.keyple.card.calypso.CalypsoExtensionService
 import org.eclipse.keyple.core.common.KeyplePluginExtensionFactory
+import org.eclipse.keyple.core.service.ConfigurableReader
 import org.eclipse.keyple.core.service.KeyplePluginException
 import org.eclipse.keyple.core.service.ObservablePlugin
 import org.eclipse.keyple.core.service.ObservableReader
@@ -59,7 +60,6 @@ import timber.log.Timber
 /** Activity launched on app start up that display the only screen available on this example app. */
 class MainActivity : AbstractExampleActivity(), PluginObserverSpi, BleDeviceScannerSpi {
   private lateinit var androidPcscPlugin: Plugin
-  private val TAG = this::class.java.simpleName
   private lateinit var cardSelectionManager: CardSelectionManager
   private lateinit var cardProtocol: AndroidPcscSupportContactlessProtocols
 
@@ -100,13 +100,13 @@ class MainActivity : AbstractExampleActivity(), PluginObserverSpi, BleDeviceScan
       progress.show()
       initReaders()
     } else {
-      addActionEvent("Start PO Read Write Mode")
+      addActionEvent("Start card Read Write Mode")
       (cardReader as ObservableReader).startCardDetection(
           ObservableCardReader.DetectionMode.REPEATING)
     }
   }
 
-  /** Initializes the PO reader (Contact Reader) and SAM reader (Contactless Reader) */
+  /** Initializes the card reader (Contact Reader) and SAM reader (Contactless Reader) */
   override fun initReaders() {
     Timber.d("initReaders")
     // Connexion to AndroidPcsc lib take time, we've added a callback to this factory.
@@ -154,6 +154,7 @@ class MainActivity : AbstractExampleActivity(), PluginObserverSpi, BleDeviceScan
         startActivityForResult(enableBtIntent, REQUEST_ENABLE_BT)
       }
 
+      addActionEvent("Scanning compliant BLE devices...")
       bluetoothAdapter?.let {
         androidPcscPlugin
             .getExtension(AndroidPcscPlugin::class.java)
@@ -172,39 +173,6 @@ class MainActivity : AbstractExampleActivity(), PluginObserverSpi, BleDeviceScan
 
       (androidPcscPlugin as ObservablePlugin).addObserver(this@MainActivity)
 
-      //      // Get and configure the PO reader
-      //      cardReader = androidPcscPlugin.getReader(AndroidPcscReader.READER_NAME)
-      //      (cardReader as ObservableReader).setReaderObservationExceptionHandler {
-      //          pluginName,
-      //          readerName,
-      //          e ->
-      //        Timber.e("An unexpected reader error occurred: $pluginName:$readerName : $e")
-      //      }
-      //
-      //      // Set the current activity as Observer of the PO reader
-      //      (cardReader as ObservableReader).addObserver(this@MainActivity)
-      //
-      //      cardProtocol = AndroidPcscSupportContactlessProtocols.NFC_ALL
-      //      // Activate protocols for the PO reader
-      //      (cardReader as ConfigurableReader).activateProtocol(cardProtocol.key,
-      // cardProtocol.key)
-      //
-      //      // Get and configure the SAM reader
-      //      samReader = androidPcscPlugin.getReader(AndroidPcscReader.READER_NAME)
-      //
-      //      /*            PermissionHelper.checkPermission(
-      //          this@MainActivity, arrayOf(
-      //              Manifest.permission.READ_EXTERNAL_STORAGE,
-      //              AndroidPcscPlugin.PCSCLIKE_SAM_PERMISSION
-      //          )
-      //      )*/
-      //
-      //      areReadersInitialized.set(true)
-      //
-      //      // Start the NFC detection
-      //      (cardReader as ObservableReader).startCardDetection(
-      //          ObservableCardReader.DetectionMode.REPEATING)
-
       withContext(Dispatchers.Main) { progress.dismiss() }
     }
   }
@@ -212,7 +180,7 @@ class MainActivity : AbstractExampleActivity(), PluginObserverSpi, BleDeviceScan
   /** Called when the activity (screen) is destroyed or put in background */
   override fun onPause() {
     if (areReadersInitialized.get()) {
-      addActionEvent("Stopping PO Read Write Mode")
+      addActionEvent("Stopping card Read Write Mode")
       // Stop NFC card detection
       (cardReader as ObservableReader).stopCardDetection()
     }
@@ -250,22 +218,22 @@ class MainActivity : AbstractExampleActivity(), PluginObserverSpi, BleDeviceScan
       R.id.usecase1 -> {
         clearEvents()
         addHeaderEvent("Running Calypso Read transaction (without SAM)")
-        configureCalypsoTransaction(::runPoReadTransactionWithoutSam)
+        configureCalypsoTransaction(::runCardReadTransactionWithoutSam)
       }
       R.id.usecase2 -> {
         clearEvents()
         addHeaderEvent("Running Calypso Read transaction (with SAM)")
-        configureCalypsoTransaction(::runPoReadTransactionWithSam)
+        configureCalypsoTransaction(::runCardReadTransactionWithSam)
       }
       R.id.usecase3 -> {
         clearEvents()
         addHeaderEvent("Running Calypso Read/Write transaction")
-        configureCalypsoTransaction(::runPoReadWriteIncreaseTransaction)
+        configureCalypsoTransaction(::runCardReadWriteIncreaseTransaction)
       }
       R.id.usecase4 -> {
         clearEvents()
         addHeaderEvent("Running Calypso Read/Write transaction")
-        configureCalypsoTransaction(::runPoReadWriteDecreaseTransaction)
+        configureCalypsoTransaction(::runCardReadWriteDecreaseTransaction)
       }
     }
     return true
@@ -279,35 +247,35 @@ class MainActivity : AbstractExampleActivity(), PluginObserverSpi, BleDeviceScan
   private fun configureCalypsoTransaction(
       responseProcessor: (selectionsResponse: ScheduledCardSelectionsResponse) -> Unit
   ) {
-    addActionEvent("Prepare Calypso PO Selection with AID: ${CalypsoClassicInfo.AID}")
+    addActionEvent("Prepare Calypso card Selection with AID: ${CalypsoClassicInfo.AID}")
     try {
-      /* Prepare a Calypso PO selection */
+      /* Prepare a Calypso card selection */
       cardSelectionManager = SmartCardServiceProvider.getService().createCardSelectionManager()
 
-      /* Calypso selection: configures a PoSelector with all the desired attributes to make the selection and read additional information afterwards */
+      /* Calypso selection: configures a card selection with all the desired attributes to make the selection and read additional information afterwards */
       calypsoCardExtensionProvider = CalypsoExtensionService.getInstance()
 
       val smartCardService = SmartCardServiceProvider.getService()
       smartCardService.checkCardExtension(calypsoCardExtensionProvider)
 
-      val poSelectionRequest = calypsoCardExtensionProvider.createCardSelection()
-      poSelectionRequest
+      val cardSelectionRequest = calypsoCardExtensionProvider.createCardSelection()
+      cardSelectionRequest
           .filterByDfName(CalypsoClassicInfo.AID)
           .filterByCardProtocol(cardProtocol.key)
 
       /* Prepare the reading order and keep the associated parser for later use once the
       selection has been made. */
-      poSelectionRequest.prepareReadRecordFile(
+      cardSelectionRequest.prepareReadRecordFile(
           CalypsoClassicInfo.SFI_EnvironmentAndHolder, CalypsoClassicInfo.RECORD_NUMBER_1.toInt())
 
       /*
        * Add the selection case to the current selection (we could have added other cases
        * here)
        */
-      cardSelectionManager.prepareSelection(poSelectionRequest)
+      cardSelectionManager.prepareSelection(cardSelectionRequest)
 
       /*
-       * Provide the SeReader with the selection operation to be processed when a PO is
+       * Provide the SeReader with the selection operation to be processed when a card is
        * inserted.
        */
       cardSelectionManager.scheduleCardSelectionScenario(
@@ -321,17 +289,17 @@ class MainActivity : AbstractExampleActivity(), PluginObserverSpi, BleDeviceScan
               CoroutineScope(Dispatchers.Main).launch {
                 when (event?.type) {
                   CardReaderEvent.Type.CARD_MATCHED -> {
-                    addResultEvent("PO detected with AID: ${CalypsoClassicInfo.AID}")
+                    addResultEvent("Card detected with AID: ${CalypsoClassicInfo.AID}")
                     responseProcessor(event.scheduledCardSelectionsResponse)
                     (cardReader as ObservableReader).finalizeCardProcessing()
                   }
                   CardReaderEvent.Type.CARD_INSERTED -> {
                     addResultEvent(
-                        "PO detected but AID didn't match with ${CalypsoClassicInfo.AID}")
+                        "Card detected but AID didn't match with ${CalypsoClassicInfo.AID}")
                     (cardReader as ObservableReader).finalizeCardProcessing()
                   }
                   CardReaderEvent.Type.CARD_REMOVED -> {
-                    addResultEvent("PO removed")
+                    addResultEvent("Card removed")
                   }
                   else -> {
                     // Do nothing
@@ -343,7 +311,7 @@ class MainActivity : AbstractExampleActivity(), PluginObserverSpi, BleDeviceScan
           }
 
       // notify reader that se detection has been launched
-      addActionEvent("Waiting for PO presentation")
+      addActionEvent("Waiting for card presentation")
     } catch (e: KeyplePluginException) {
       Timber.e(e)
       addResultEvent("Exception: ${e.message}")
@@ -353,15 +321,15 @@ class MainActivity : AbstractExampleActivity(), PluginObserverSpi, BleDeviceScan
     }
   }
 
-  private fun runPoReadTransactionWithSam(selectionsResponse: ScheduledCardSelectionsResponse) {
-    runPoReadTransaction(selectionsResponse, true)
+  private fun runCardReadTransactionWithSam(selectionsResponse: ScheduledCardSelectionsResponse) {
+    runCardReadTransaction(selectionsResponse, true)
   }
 
-  private fun runPoReadTransactionWithoutSam(selectionsResponse: ScheduledCardSelectionsResponse) {
-    runPoReadTransaction(selectionsResponse, false)
+  private fun runCardReadTransactionWithoutSam(selectionsResponse: ScheduledCardSelectionsResponse) {
+    runCardReadTransaction(selectionsResponse, false)
   }
 
-  private fun runPoReadTransaction(
+  private fun runCardReadTransaction(
       selectionsResponse: ScheduledCardSelectionsResponse,
       withSam: Boolean
   ) {
@@ -378,13 +346,13 @@ class MainActivity : AbstractExampleActivity(), PluginObserverSpi, BleDeviceScan
 
         if (selectionsResult.activeSelectionIndex != -1) {
           addResultEvent("Selection successful")
-          val calypsoPo = selectionsResult.activeSmartCard as CalypsoCard
+          val calypsoCard = selectionsResult.activeSmartCard as CalypsoCard
 
           /*
            * Retrieve the data read from the parser updated during the selection process
            */
           val efEnvironmentHolder =
-              calypsoPo.getFileBySfi(CalypsoClassicInfo.SFI_EnvironmentAndHolder)
+              calypsoCard.getFileBySfi(CalypsoClassicInfo.SFI_EnvironmentAndHolder)
           addActionEvent("Read environment and holder data")
 
           addResultEvent(
@@ -394,11 +362,11 @@ class MainActivity : AbstractExampleActivity(), PluginObserverSpi, BleDeviceScan
                             )
                         }")
 
-          addHeaderEvent("2nd PO exchange: read the event log file")
+          addHeaderEvent("2nd card exchange: read the event log file")
 
-          val poTransaction =
+          val cardTransaction =
               if (withSam) {
-                addActionEvent("Create Po secured transaction with SAM")
+                addActionEvent("Create a secured card transaction with SAM")
 
                 // Configure the card resource service to provide an adequate SAM for future secure
                 // operations.
@@ -411,44 +379,44 @@ class MainActivity : AbstractExampleActivity(), PluginObserverSpi, BleDeviceScan
                     CalypsoClassicInfo.SAM_PROFILE_NAME)
 
                 /*
-                 * Create Po secured transaction.
+                 * Create secured card transaction.
                  *
                  * check the availability of the SAM doing a ATR based selection, open its physical and
                  * logical channels and keep it open
                  */
                 calypsoCardExtensionProvider.createCardTransaction(
-                    cardReader, calypsoPo, getSecuritySettings())
+                    cardReader, calypsoCard, getSecuritySettings())
               } else {
-                // Create Po unsecured transaction
+                // Create unsecured card transaction
                 calypsoCardExtensionProvider.createCardTransactionWithoutSecurity(
-                    cardReader, calypsoPo)
+                    cardReader, calypsoCard)
               }
 
           /*
            * Prepare the reading order and keep the associated parser for later use once the
            * transaction has been processed.
            */
-          poTransaction.prepareReadRecordFile(
+          cardTransaction.prepareReadRecordFile(
               CalypsoClassicInfo.SFI_EventLog, CalypsoClassicInfo.RECORD_NUMBER_1.toInt())
 
-          poTransaction.prepareReadRecordFile(
+          cardTransaction.prepareReadRecordFile(
               CalypsoClassicInfo.SFI_Counter1, CalypsoClassicInfo.RECORD_NUMBER_1.toInt())
 
           /*
-           * Actual PO communication: send the prepared read order, then close the channel
-           * with the PO
+           * Actual card communication: send the prepared read order, then close the channel
+           * with the card
            */
-          addActionEvent("Process PO Command for counter and event logs reading")
+          addActionEvent("Process card Command for counter and event logs reading")
 
           if (withSam) {
-            addActionEvent("Process PO Opening session for transactions")
-            poTransaction.processOpening(WriteAccessLevel.LOAD)
+            addActionEvent("Process card Opening session for transactions")
+            cardTransaction.processOpening(WriteAccessLevel.LOAD)
             addResultEvent("Opening session: SUCCESS")
             val counter = readCounter(selectionsResult)
             val eventLog = ByteArrayUtil.toHex(readEventLog(selectionsResult))
 
-            addActionEvent("Process PO Closing session")
-            poTransaction.processClosing()
+            addActionEvent("Process card Closing session")
+            cardTransaction.processClosing()
             addResultEvent("Closing session: SUCCESS")
 
             // In secured reading, value read elements can only be trusted if the session is closed
@@ -456,7 +424,7 @@ class MainActivity : AbstractExampleActivity(), PluginObserverSpi, BleDeviceScan
             addResultEvent("Counter value: $counter")
             addResultEvent("EventLog file: $eventLog")
           } else {
-            poTransaction.processCardCommands()
+            cardTransaction.processCardCommands()
             addResultEvent("Counter value: ${readCounter(selectionsResult)}")
             addResultEvent(
                 "EventLog file: ${
@@ -468,11 +436,11 @@ class MainActivity : AbstractExampleActivity(), PluginObserverSpi, BleDeviceScan
                             }")
           }
 
-          addResultEvent("End of the Calypso PO processing.")
+          addResultEvent("End of the Calypso card processing.")
           addResultEvent("You can remove the card now")
         } else {
           addResultEvent(
-              "The selection of the PO has failed. Should not have occurred due to the MATCHED_ONLY selection mode.")
+              "The selection of the card has failed. Should not have occurred due to the MATCHED_ONLY selection mode.")
         }
       } catch (e: KeyplePluginException) {
         Timber.e(e)
@@ -485,42 +453,42 @@ class MainActivity : AbstractExampleActivity(), PluginObserverSpi, BleDeviceScan
   }
 
   private fun readCounter(selectionsResult: CardSelectionResult): Int {
-    val calypsoPo = selectionsResult.activeSmartCard as CalypsoCard
-    val efCounter1 = calypsoPo.getFileBySfi(CalypsoClassicInfo.SFI_Counter1)
+    val calypsoCard = selectionsResult.activeSmartCard as CalypsoCard
+    val efCounter1 = calypsoCard.getFileBySfi(CalypsoClassicInfo.SFI_Counter1)
     return efCounter1.data.getContentAsCounterValue(CalypsoClassicInfo.RECORD_NUMBER_1.toInt())
   }
 
   private fun readEventLog(selectionsResult: CardSelectionResult): ByteArray? {
-    val calypsoPo = selectionsResult.activeSmartCard as CalypsoCard
-    val efCounter1 = calypsoPo.getFileBySfi(CalypsoClassicInfo.SFI_EventLog)
+    val calypsoCard = selectionsResult.activeSmartCard as CalypsoCard
+    val efCounter1 = calypsoCard.getFileBySfi(CalypsoClassicInfo.SFI_EventLog)
     return efCounter1.data.content
   }
 
-  private fun runPoReadWriteIncreaseTransaction(
+  private fun runCardReadWriteIncreaseTransaction(
       selectionsResponse: ScheduledCardSelectionsResponse
   ) {
-    runPoReadWriteTransaction(selectionsResponse, TransactionType.INCREASE)
+    runCardReadWriteTransaction(selectionsResponse, TransactionType.INCREASE)
   }
 
-  private fun runPoReadWriteDecreaseTransaction(
+  private fun runCardReadWriteDecreaseTransaction(
       selectionsResponse: ScheduledCardSelectionsResponse
   ) {
-    runPoReadWriteTransaction(selectionsResponse, TransactionType.DECREASE)
+    runCardReadWriteTransaction(selectionsResponse, TransactionType.DECREASE)
   }
 
-  private fun runPoReadWriteTransaction(
+  private fun runCardReadWriteTransaction(
       selectionsResponse: ScheduledCardSelectionsResponse,
       transactionType: TransactionType
   ) {
     GlobalScope.launch(Dispatchers.IO) {
       try {
-        addActionEvent("1st PO exchange: aid selection")
+        addActionEvent("1st card exchange: aid selection")
         val selectionsResult =
             cardSelectionManager.parseScheduledCardSelectionsResponse(selectionsResponse)
 
         if (selectionsResult.activeSelectionIndex != -1) {
-          addResultEvent("Calypso PO selection: SUCCESS")
-          val calypsoPo = selectionsResult.activeSmartCard as CalypsoCard
+          addResultEvent("Calypso card selection: SUCCESS")
+          val calypsoCard = selectionsResult.activeSmartCard as CalypsoCard
           addResultEvent("AID: ${ByteArrayUtil.fromHex(CalypsoClassicInfo.AID)}")
 
           val androidPcscPlugin =
@@ -530,59 +498,59 @@ class MainActivity : AbstractExampleActivity(), PluginObserverSpi, BleDeviceScan
               CalypsoClassicInfo.SAM_READER_NAME_REGEX,
               CalypsoClassicInfo.SAM_PROFILE_NAME)
 
-          addActionEvent("Create Po secured transaction with SAM")
-          // Create Po secured transaction
-          val poTransaction =
+          addActionEvent("Create secured card transaction with SAM")
+          // Create secured card transaction
+          val cardTransaction =
               calypsoCardExtensionProvider.createCardTransaction(
-                  cardReader, calypsoPo, getSecuritySettings())
+                  cardReader, calypsoCard, getSecuritySettings())
 
           when (transactionType) {
             TransactionType.INCREASE -> {
               /*
                * Open Session for the debit key
                */
-              addActionEvent("Process PO Opening session for transactions")
-              poTransaction.processOpening(WriteAccessLevel.LOAD)
+              addActionEvent("Process card Opening session for transactions")
+              cardTransaction.processOpening(WriteAccessLevel.LOAD)
               addResultEvent("Opening session: SUCCESS")
 
-              poTransaction.prepareReadRecordFile(
+              cardTransaction.prepareReadRecordFile(
                   CalypsoClassicInfo.SFI_Counter1, CalypsoClassicInfo.RECORD_NUMBER_1.toInt())
-              poTransaction.processCardCommands()
+              cardTransaction.processCardCommands()
 
-              poTransaction.prepareIncreaseCounter(
+              cardTransaction.prepareIncreaseCounter(
                   CalypsoClassicInfo.SFI_Counter1, CalypsoClassicInfo.RECORD_NUMBER_1.toInt(), 10)
-              addActionEvent("Process PO increase counter by 10")
-              poTransaction.processClosing()
+              addActionEvent("Process card increase counter by 10")
+              cardTransaction.processClosing()
               addResultEvent("Increase by 10: SUCCESS")
             }
             TransactionType.DECREASE -> {
               /*
                * Open Session for the debit key
                */
-              addActionEvent("Process PO Opening session for transactions")
-              poTransaction.processOpening(WriteAccessLevel.DEBIT)
+              addActionEvent("Process card Opening session for transactions")
+              cardTransaction.processOpening(WriteAccessLevel.DEBIT)
               addResultEvent("Opening session: SUCCESS")
 
-              poTransaction.prepareReadRecordFile(
+              cardTransaction.prepareReadRecordFile(
                   CalypsoClassicInfo.SFI_Counter1, CalypsoClassicInfo.RECORD_NUMBER_1.toInt())
-              poTransaction.processCardCommands()
+              cardTransaction.processCardCommands()
 
               /*
                * A ratification command will be sent (CONTACTLESS_MODE).
                */
-              poTransaction.prepareDecreaseCounter(
+              cardTransaction.prepareDecreaseCounter(
                   CalypsoClassicInfo.SFI_Counter1, CalypsoClassicInfo.RECORD_NUMBER_1.toInt(), 1)
-              addActionEvent("Process PO decreasing counter and close transaction")
-              poTransaction.processClosing()
+              addActionEvent("Process card decreasing counter and close transaction")
+              cardTransaction.processClosing()
               addResultEvent("Decrease by 1: SUCCESS")
             }
           }
 
-          addResultEvent("End of the Calypso PO processing.")
+          addResultEvent("End of the Calypso card processing.")
           addResultEvent("You can remove the card now")
         } else {
           addResultEvent(
-              "The selection of the PO has failed. Should not have occurred due to the MATCHED_ONLY selection mode.")
+              "The selection of the card has failed. Should not have occurred due to the MATCHED_ONLY selection mode.")
         }
       } catch (e: KeyplePluginException) {
         Timber.e(e)
@@ -619,13 +587,63 @@ class MainActivity : AbstractExampleActivity(), PluginObserverSpi, BleDeviceScan
   }
 
   override fun onPluginEvent(pluginEvent: PluginEvent?) {
-    TODO("Not yet implemented")
+    if (pluginEvent != null) {
+      var logMessage =
+          "Plugin Event: plugin=${pluginEvent.pluginName}, event=${pluginEvent.type?.name}"
+      for (readerName in pluginEvent.readerNames) {
+        logMessage += ", reader=$readerName"
+      }
+      if (pluginEvent.type == PluginEvent.Type.READER_CONNECTED) {
+        onReaderConnected(pluginEvent.readerNames.first())
+      }
+      // handle reader disconnection here (PluginEvent.Type.READER_DISCONNECTED)
+    }
+  }
+
+  fun onReaderConnected(readerName: String) {
+
+    addActionEvent("Reader '$readerName' connected.")
+
+    // Get and configure the card reader
+    cardReader = androidPcscPlugin.getReader(readerName)
+    (cardReader as ObservableReader).setReaderObservationExceptionHandler {
+        pluginName,
+        readerName,
+        e ->
+      Timber.e("An unexpected reader error occurred: $pluginName:$readerName : $e")
+    }
+
+    // Set the current activity as Observer of the card reader
+    (cardReader as ObservableReader).addObserver(this@MainActivity)
+
+    cardProtocol = AndroidPcscSupportContactlessProtocols.NFC_ALL
+    // Activate protocols for the card reader
+    (cardReader as ConfigurableReader).activateProtocol(cardProtocol.key, cardProtocol.key)
+
+    // Get and configure the SAM reader
+    //          samReader = androidPcscPlugin.getReader(AndroidPcscReader.READER_NAME)
+
+    /*            PermissionHelper.checkPermission(
+        this@MainActivity, arrayOf(
+            Manifest.permission.READ_EXTERNAL_STORAGE,
+            AndroidPcscPlugin.PCSCLIKE_SAM_PERMISSION
+        )
+    )*/
+
+    areReadersInitialized.set(true)
+
+    // Start the NFC detection
+    (cardReader as ObservableReader).startCardDetection(
+        ObservableCardReader.DetectionMode.REPEATING)
+
+    configureCalypsoTransaction(::runCardReadTransactionWithoutSam)
   }
 
   override fun onDeviceDiscovered(bluetoothDeviceInfoList: MutableCollection<BleDeviceInfo>) {
     for (bleDeviceInfo in bluetoothDeviceInfoList) {
       Timber.i("Discovered devices: $bleDeviceInfo")
     }
+    addActionEvent("Compliant BLE device discovered, connecting...")
     // connect to first discovered device (we should ask the user)
     androidPcscPlugin
         .getExtension(AndroidPcscPlugin::class.java)

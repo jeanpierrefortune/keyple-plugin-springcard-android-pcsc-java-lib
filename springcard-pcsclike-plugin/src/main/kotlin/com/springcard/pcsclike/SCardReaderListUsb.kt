@@ -21,8 +21,6 @@ import timber.log.Timber
 class SCardReaderListUsb
 internal constructor(layerDevice: UsbDevice, callbacks: SCardReaderListCallback) :
     SCardReaderList(layerDevice as Any, callbacks) {
-  private val TAG: String
-    get() = this::class.java.simpleName
 
   override fun create(ctx: Context) {
     Timber.i("Lib rev = ${BuildConfig.LIBRARY_PACKAGE_NAME}")

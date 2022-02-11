@@ -21,9 +21,6 @@ import timber.log.Timber
 
 internal abstract class CcidFrame {
 
-  private val TAG: String
-    get() = this::class.java.simpleName
-
   /* Array containing the whole data */
   /* initialize with header (10 first bytes) to zero */
   var raw = mutableListOf<Byte>(0, 0, 0, 0, 0, 0, 0, 0, 0, 0)

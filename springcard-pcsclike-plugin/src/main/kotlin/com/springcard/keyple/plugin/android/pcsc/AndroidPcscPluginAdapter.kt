@@ -41,17 +41,16 @@ internal class AndroidPcscPluginAdapter(var context: Context) :
     private const val MONITORING_CYCLE_DURATION_MS = 1000
   }
 
-  private val TAG = this::class.java.simpleName
   private var bluetoothDeviceList: MutableMap<String, BluetoothDevice> = mutableMapOf()
   private var bluetoothDeviceInfoMap: MutableMap<String, BleDeviceInfo> = mutableMapOf()
-  private var readers: MutableMap<String, SCardReader> = mutableMapOf()
-  private var bluetoothAdapter: BluetoothAdapter? = null
+  private var sCardReaders: MutableMap<String, SCardReader> = mutableMapOf()
   private lateinit var bluetoothScanner: BluetoothLeScanner
   private lateinit var bleDeviceScannerSpi: BleDeviceScannerSpi
   private var mIsContinuesScan: Boolean = false
   private var mScanThread: Thread? = null
   private var mHandler: Handler = Handler(Looper.getMainLooper())
   private var stopOnFirstDeviceDiscovered: Boolean = false
+  private val readerSpis: MutableMap<String, AndroidPcscReaderAdapter> = mutableMapOf()
 
   override fun scanBleReaders(
       bluetoothAdapter: BluetoothAdapter,
@@ -84,18 +83,24 @@ internal class AndroidPcscPluginAdapter(var context: Context) :
   }
 
   override fun searchAvailableReaders(): MutableSet<ReaderSpi> {
-    val readerSpis: MutableSet<ReaderSpi> = HashSet()
-    for (reader in readers) {
-      // readerSpis.add(AndroidPcscReaderAdapter(reader))
+    for (sCardReader in sCardReaders.values) {
+      readerSpis.put(sCardReader.name, AndroidPcscReaderAdapter(sCardReader))
     }
-    return readerSpis
+    return readerSpis.values.toMutableSet()
   }
 
   override fun searchAvailableReaderNames(): MutableSet<String> {
-    return readers.keys
+    return sCardReaders.keys
   }
 
   override fun searchReader(readerName: String): ReaderSpi? {
+    for ((name, sCardReader) in sCardReaders) {
+      if (readerName == name) {
+        val reader = AndroidPcscReaderAdapter(sCardReader)
+        readerSpis[sCardReader.name] = reader
+        return reader
+      }
+    }
     return null
   }
 
@@ -145,18 +150,18 @@ internal class AndroidPcscPluginAdapter(var context: Context) :
   //        // TODO action to do when the plugin is unregistered
   //    }
 
-  protected var scardCallbacks: SCardReaderListCallback =
+  var scardCallbacks: SCardReaderListCallback =
       object : SCardReaderListCallback() {
         override fun onReaderListCreated(readerList: SCardReaderList) {
           for (i in 0 until readerList.slotCount) {
             Timber.e("Add reader: ${readerList.slots[i]}")
-            readerList.getReader(i)?.let { readers.put(it.name, it) }
+            readerList.getReader(i)?.let { sCardReaders.put(it.name, it) }
           }
         }
 
         override fun onReaderListClosed(readerList: SCardReaderList?) {
           Timber.e("onReaderListClosed")
-          readers.clear()
+          sCardReaders.clear()
         }
 
         override fun onControlResponse(readerList: SCardReaderList, response: ByteArray) {
@@ -168,11 +173,14 @@ internal class AndroidPcscPluginAdapter(var context: Context) :
             cardPresent: Boolean,
             cardConnected: Boolean
         ) {
-          Timber.e("onReaderStatus")
+          Timber.e(
+              "onReaderStatus: reader=${slot.name}, cardPresent=$cardPresent, cardConnected=$cardConnected")
+          readerSpis[slot.name]?.onCardPresenceChange(cardPresent)
         }
 
         override fun onCardConnected(channel: SCardChannel) {
-          Timber.e("onCardConnected")
+          Timber.e("onCardConnected: reader=${channel.parent.name}")
+          readerSpis[channel.parent.name]?.onCardConnected()
         }
 
         override fun onCardDisconnected(channel: SCardChannel) {
@@ -181,6 +189,7 @@ internal class AndroidPcscPluginAdapter(var context: Context) :
 
         override fun onTransmitResponse(channel: SCardChannel, response: ByteArray) {
           Timber.e("onTransmitResponse")
+          readerSpis[channel.parent.name]?.onCardResponseReceived(response)
         }
 
         override fun onReaderListError(readerList: SCardReaderList?, error: SCardError) {
@@ -227,7 +236,7 @@ internal class AndroidPcscPluginAdapter(var context: Context) :
       scanFilters.add(scanFilterSpringCorePlain)
       scanFilters.add(scanFilterSpringCoreBonded)
     } catch (e: Exception) {
-      Timber.e(e.message)
+      Timber.e(e)
     }
 
     /* Reset devices list anyway */
@@ -254,8 +263,8 @@ internal class AndroidPcscPluginAdapter(var context: Context) :
           if (callbackType == ScanSettings.CALLBACK_TYPE_ALL_MATCHES) {
             if (!bluetoothDeviceInfoMap.containsKey(bleDeviceInfo.address)) {
               Timber.d("BLE device added: ${bleDeviceInfo.toString()}")
-              bluetoothDeviceInfoMap.put(bleDeviceInfo.address, bleDeviceInfo)
-              bluetoothDeviceList.put(bleDeviceInfo.address, result.device)
+              bluetoothDeviceInfoMap[bleDeviceInfo.address] = bleDeviceInfo
+              bluetoothDeviceList[bleDeviceInfo.address] = result.device
               if (stopOnFirstDeviceDiscovered) {
                 // shorten timer
                 mHandler.removeCallbacks(mTerminateScan)
@@ -268,10 +277,6 @@ internal class AndroidPcscPluginAdapter(var context: Context) :
             bluetoothDeviceList.remove(result.device.address)
             bluetoothDeviceInfoMap.remove(result.device.address)
           }
-        }
-
-        override fun onScanFailed(errorCode: Int) {
-          super.onScanFailed(errorCode)
         }
       }
 
@@ -300,7 +305,7 @@ internal class AndroidPcscPluginAdapter(var context: Context) :
         mHandler.postDelayed(mTerminateScan, scanDelay) // Delay Period
       }
     } catch (e: Exception) {
-      Timber.e(e.message)
+      Timber.e(e)
     }
   }
 

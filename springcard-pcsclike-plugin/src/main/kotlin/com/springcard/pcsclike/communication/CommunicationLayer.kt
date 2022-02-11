@@ -30,7 +30,6 @@ internal enum class SubState {
 
 internal abstract class CommunicationLayer(protected var scardReaderList: SCardReaderList) {
 
-  private val TAG = this::class.java.simpleName
   protected abstract var lowLayer: LowLevelLayer
 
   private var creatingSubState: SubState = SubState.Idle

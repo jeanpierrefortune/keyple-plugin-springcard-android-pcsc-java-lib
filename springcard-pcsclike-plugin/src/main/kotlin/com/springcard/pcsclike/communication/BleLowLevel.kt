@@ -76,7 +76,6 @@ internal class BleLowLevel(
   internal lateinit var charCcidPcToRdr: BluetoothGattCharacteristic
   private lateinit var charCcidStatus: BluetoothGattCharacteristic
 
-  private val TAG = this::class.java.simpleName
   private lateinit var mBluetoothGatt: BluetoothGatt
 
   private var cptConnectAttempts: Int = 0

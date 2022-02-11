@@ -11,17 +11,22 @@
  ************************************************************************************** */
 package com.springcard.keyple.plugin.android.pcsc
 
+import android.os.ConditionVariable
+import com.springcard.keyple.plugin.android.pcsc.AndroidPcscReader.Companion.WAIT_CARD_CONNECT_TIMEOUT
+import com.springcard.keyple.plugin.android.pcsc.AndroidPcscReader.Companion.WAIT_RESPONSE_TIMEOUT
 import com.springcard.pcsclike.SCardReader
-import kotlinx.coroutines.ExperimentalCoroutinesApi
+import org.eclipse.keyple.core.plugin.CardIOException
+import org.eclipse.keyple.core.plugin.ReaderIOException
 import org.eclipse.keyple.core.plugin.spi.reader.ConfigurableReaderSpi
 import org.eclipse.keyple.core.plugin.spi.reader.observable.ObservableReaderSpi
 import org.eclipse.keyple.core.plugin.spi.reader.observable.state.insertion.WaitForCardInsertionBlockingSpi
 import org.eclipse.keyple.core.plugin.spi.reader.observable.state.processing.DontWaitForCardRemovalDuringProcessingSpi
 import org.eclipse.keyple.core.plugin.spi.reader.observable.state.removal.WaitForCardRemovalBlockingSpi
+import org.eclipse.keyple.core.util.ByteArrayUtil
+import timber.log.Timber
 
 /** Keyple SE Reader's Implementation for the Bluebird (SAM access) reader */
 @Suppress("INVISIBLE_ABSTRACT_MEMBER_FROM_SUPER_WARNING")
-@ExperimentalCoroutinesApi
 class AndroidPcscReaderAdapter(val sCardReader: SCardReader) :
     AndroidPcscReader,
     ConfigurableReaderSpi,
@@ -30,248 +35,131 @@ class AndroidPcscReaderAdapter(val sCardReader: SCardReader) :
     DontWaitForCardRemovalDuringProcessingSpi,
     WaitForCardRemovalBlockingSpi {
 
+  private lateinit var cardResponse: ByteArray
+  private var isCardPresent: Boolean = false
+  private val name: String = sCardReader.name
+  private val waitCardStatusChange = ConditionVariable()
+  private val waitCardResponse = ConditionVariable()
+  private val waitCardConnect = ConditionVariable()
+
   override fun getName(): String {
-    TODO("Not yet implemented")
+    return name
   }
 
   override fun openPhysicalChannel() {
-    TODO("Not yet implemented")
+    Timber.v("Open physical channel")
+    try {
+      sCardReader.cardConnect()
+      waitCardConnect.block(WAIT_CARD_CONNECT_TIMEOUT)
+      waitCardConnect.close()
+    } catch (e: Exception) {
+      throw ReaderIOException(getName() + ": Error while opening Physical Channel", e)
+    }
   }
 
   override fun closePhysicalChannel() {
-    TODO("Not yet implemented")
+    Timber.v("Close physical channel")
+    sCardReader.channel.disconnect()
   }
 
   override fun isPhysicalChannelOpen(): Boolean {
-    TODO("Not yet implemented")
+    val isCardConnected = sCardReader.cardConnected
+    Timber.v("Physical channel is open: $isCardConnected")
+    return isCardConnected
   }
 
   override fun checkCardPresence(): Boolean {
-    TODO("Not yet implemented")
+    Timber.v("Card present: $isCardPresent")
+    return isCardPresent
   }
 
   override fun getPowerOnData(): String {
-    TODO("Not yet implemented")
+    val powerOnDataHex = ByteArrayUtil.toHex(sCardReader.channel.atr)
+    Timber.v("Power on data: $powerOnDataHex")
+    return powerOnDataHex
   }
 
   override fun transmitApdu(apduIn: ByteArray?): ByteArray {
-    TODO("Not yet implemented")
+    if (apduIn != null) {
+      Timber.v("APDUC: ${ByteArrayUtil.toHex(apduIn)}")
+      sCardReader.channel.transmit(apduIn)
+      waitCardResponse.block(WAIT_RESPONSE_TIMEOUT)
+      waitCardResponse.close()
+      Timber.v("APDUR: ${ByteArrayUtil.toHex(cardResponse)}")
+      return cardResponse
+    } else {
+      throw CardIOException(this.getName() + ": null channel.")
+    }
   }
 
   override fun isContactless(): Boolean {
-    TODO("Not yet implemented")
+    return true
   }
 
   override fun onUnregister() {
-    TODO("Not yet implemented")
+    Timber.i("Unregister reader '$name'")
   }
 
   override fun onStartDetection() {
-    TODO("Not yet implemented")
+    Timber.i("Starting card detection on reader '$name'")
   }
 
   override fun onStopDetection() {
-    TODO("Not yet implemented")
+    Timber.i("Stopping card detection on reader '$name'")
   }
 
   override fun isProtocolSupported(readerProtocol: String?): Boolean {
-    TODO("Not yet implemented")
+    return true
   }
 
   override fun activateProtocol(readerProtocol: String?) {
-    TODO("Not yet implemented")
+    // TODO("Not yet implemented")
   }
 
   override fun deactivateProtocol(readerProtocol: String?) {
-    TODO("Not yet implemented")
+    // TODO("Not yet implemented")
   }
 
   override fun isCurrentProtocol(readerProtocol: String?): Boolean {
-    TODO("Not yet implemented")
+    // TODO("Not yet implemented")
+    return true
   }
 
   override fun waitForCardRemoval() {
-    TODO("Not yet implemented")
+    do {
+      waitCardStatusChange.block()
+      waitCardStatusChange.close()
+    } while (isCardPresent)
   }
 
   override fun stopWaitForCardRemoval() {
-    TODO("Not yet implemented")
+    waitCardStatusChange.close()
   }
 
   override fun waitForCardInsertion() {
-    TODO("Not yet implemented")
+    do {
+      waitCardStatusChange.block()
+      waitCardStatusChange.close()
+    } while (!isCardPresent)
   }
 
   override fun stopWaitForCardInsertion() {
-    TODO("Not yet implemented")
+    waitCardStatusChange.close()
   }
 
-  //    private val reader = null // AndroidPcscReader.getInstance()
-  //
-  //    /**
-  //     * This property is used to force 'compute protocol' by Keyple library
-  //     */
-  //    private var physicalChannelOpen = false
-  //
-  //    @Throws(IllegalStateException::class)
-  //    override fun transmitApdu(apduIn: ByteArray?): ByteArray? {
-  //        var apduResponse: ByteArray? = byteArrayOf()
-  //
-  //        if (BackgroundThreadExecutor.isUiThread()) {
-  //            throw IllegalStateException("APDU exchange must NOT be done on main UI thread")
-  //        }
-  //
-  //        try {
-  //            Timber.d("transmitApdu apduIn : ${ByteArrayUtil.toHex(apduIn)}")
-  //            runBlocking {
-  //                apduResponse = executeApduAsync(apduIn)
-  //            }
-  //        } catch (e: Exception) {
-  //            Timber.e("transmitApdu error $e")
-  //            throw IllegalStateException(e)
-  //        }
-  //
-  //        Timber.d("transmitApdu apduResponse : ${ByteArrayUtil.toHex(apduResponse)}")
-  //        return apduResponse
-  //    }
-  //
-  //    private suspend fun executeApduAsync(apduIn: ByteArray?): ByteArray? {
-  //        if (apduIn == null) {
-  //            return ByteArray(0)
-  //        }
-  //        /*reader.setSamResponseChannel(Channel(Channel.UNLIMITED))*/
-  //
-  //        return suspendCoroutineWithTimeout(APDU_TIMEOUT) { continuation ->
-  //            val handler = CoroutineExceptionHandler { _, exception ->
-  //                Timber.e("error SAM connection : $exception")
-  //                handleResponseApduResult(
-  //                    result = null,
-  //                    throwable = exception,
-  //                    continuation = continuation
-  //                )
-  //            }
-  //
-  //            GlobalScope.launch(handler) {
-  //                /*withContext(Dispatchers.IO) {
-  //                    // reader.sendCommandToSam(apduIn)
-  //
-  //                    for (resultApdu in reader.getSamResponseChannel()!!) {
-  //                        handleResponseApduResult(resultApdu, null, continuation)
-  //                    }
-  //                }*/
-  //            }
-  //        }
-  //    }
-  //
-  //    private fun handleResponseApduResult(
-  //        result: ByteArray?,
-  //        throwable: Throwable?,
-  //        continuation: CancellableContinuation<ByteArray>
-  //    ) {
-  //        if (continuation.isActive) {
-  //            /*reader.getSamResponseChannel()?.close()
-  //            reader.setSamResponseChannel(null)*/
-  //
-  //            result?.let {
-  //                continuation.resume(it)
-  //            }
-  //            throwable?.let {
-  //                continuation.resumeWithException(it)
-  //            }
-  //        }
-  //    }
-  //
-  //    /**
-  //     * @see ReaderSpi.getPowerOnData
-  //     */
-  //    override fun getPowerOnData(): String {
-  //        return "" // ByteArrayUtil.toHex(reader.atr)
-  //    }
-  //
-  //    /**
-  //     * @see ReaderSpi.closePhysicalChannel
-  //     */
-  //    @Throws(IllegalStateException::class)
-  //    override fun closePhysicalChannel() {
-  //        physicalChannelOpen = false
-  //    }
-  //
-  //    /**
-  //     * @see ReaderSpi.openPhysicalChannel
-  //     */
-  //    override fun openPhysicalChannel() {
-  //        physicalChannelOpen = true
-  //    }
-  //
-  //    /**
-  //     * @see ReaderSpi.isPhysicalChannelOpen
-  //     */
-  //    override fun isPhysicalChannelOpen(): Boolean {
-  //        return false /*(reader.isSamPhysicalChannelOpen() &&
-  //                physicalChannelOpen)*/
-  //    }
-  //
-  //    /**
-  //     * @see ReaderSpi.checkCardPresence
-  //     */
-  //    override fun checkCardPresence(): Boolean {
-  //        return false // reader.checkSamCardPresence()
-  //    }
-  //
-  //    /**
-  //     * @see ReaderSpi.isContactless
-  //     */
-  //    override fun isContactless(): Boolean {
-  //        return false
-  //    }
-  //
-  //    /**
-  //     * @see ReaderSpi.getName
-  //     */
-  //    override fun getName(): String {
-  //        return name
-  //    }
-  //
-  //    /**
-  //     * @see ReaderSpi.onUnregister
-  //     */
-  //    override fun onUnregister() {
-  //        // Do nothing -> all unregister operations are handled by BluebirdReader
-  //    }
-  //
-  //    override fun onStartDetection() {
-  //        TODO("Not yet implemented")
-  //    }
-  //
-  //    override fun onStopDetection() {
-  //        TODO("Not yet implemented")
-  //    }
-  //
-  //    override fun isProtocolSupported(readerProtocol: String?): Boolean {
-  //        TODO("Not yet implemented")
-  //    }
-  //
-  //    override fun activateProtocol(readerProtocol: String?) {
-  //        TODO("Not yet implemented")
-  //    }
-  //
-  //    override fun deactivateProtocol(readerProtocol: String?) {
-  //        TODO("Not yet implemented")
-  //    }
-  //
-  //    override fun isCurrentProtocol(readerProtocol: String?): Boolean {
-  //        TODO("Not yet implemented")
-  //    }
-  //
-  //    companion object {
-  //        private const val APDU_TIMEOUT: Long = 1000
-  //    }
-  //
-  //    override fun waitForCardRemoval() {
-  //        TODO("Not yet implemented")
-  //    }
-  //
-  //    override fun stopWaitForCardRemoval() {
-  //        TODO("Not yet implemented")
-  //    }
+  fun onCardPresenceChange(isCardPresent: Boolean) {
+    Timber.d("Reader '$name', card presence changed: $isCardPresent")
+    this.isCardPresent = isCardPresent
+    waitCardStatusChange.open()
+  }
+
+  fun onCardResponseReceived(cardResponse: ByteArray) {
+    Timber.d("Reader '$name', ${cardResponse.size} bytes received from the card")
+    this.cardResponse = cardResponse
+    waitCardResponse.open()
+  }
+
+  fun onCardConnected() {
+    waitCardConnect.open()
+  }
 }

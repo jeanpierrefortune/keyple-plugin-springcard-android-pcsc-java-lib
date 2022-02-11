@@ -17,5 +17,7 @@ interface AndroidPcscReader : KeypleReaderExtension {
 
   companion object {
     const val READER_NAME = "AndroidPcscReader"
+    const val WAIT_RESPONSE_TIMEOUT: Long = 5000
+    const val WAIT_CARD_CONNECT_TIMEOUT: Long = 5000
   }
 }

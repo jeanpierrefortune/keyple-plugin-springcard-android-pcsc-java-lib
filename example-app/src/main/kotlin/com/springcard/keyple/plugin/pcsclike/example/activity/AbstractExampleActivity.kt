@@ -254,7 +254,7 @@ abstract class AbstractExampleActivity :
       try {
         reader.getExtension(AndroidPcscReader::class.java)
       } catch (e: Exception) {
-        Timber.e("Exception raised while setting up the reader ${reader.getName()} : ${e.message}")
+        Timber.e("Exception raised while setting up the reader ${reader.name} : ${e.message}")
       }
     }
   }

@@ -26,7 +26,6 @@ internal enum class State {
 
 internal class DeviceMachineState(private val scardReaderList: SCardReaderList) {
 
-  private val TAG = this::class.java.simpleName
   @Volatile
   internal var currentState = State.Closed
     get() {
