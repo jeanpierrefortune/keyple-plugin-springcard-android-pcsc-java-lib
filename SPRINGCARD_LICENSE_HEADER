@@ -1,5 +1,5 @@
 /* **************************************************************************************
- * Copyright (c) 2022 SpringCard - https://www.springcard.com/
+ * Copyright (c) $YEAR SpringCard - https://www.springcard.com/
  *
  * See the NOTICE file(s) distributed with this work for additional information
  * regarding copyright ownership.
@@ -9,13 +9,3 @@
  *
  * SPDX-License-Identifier: EPL-2.0
  ************************************************************************************** */
-package com.springcard.keyple.plugin.pcsclike.example.model
-
-open class EventModel(val type: Int, val text: String) {
-  companion object {
-    const val TYPE_HEADER = 0
-    const val TYPE_ACTION = 1
-    const val TYPE_RESULT = 2
-    const val TYPE_MULTICHOICE = 3
-  }
-}

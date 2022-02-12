@@ -1,5 +1,5 @@
 /* **************************************************************************************
- * Copyright (c) 2021 SpringCard - https://www.springcard.com/
+ * Copyright (c) 2022 SpringCard - https://www.springcard.com/
  *
  * See the NOTICE file(s) distributed with this work for additional information
  * regarding copyright ownership.
