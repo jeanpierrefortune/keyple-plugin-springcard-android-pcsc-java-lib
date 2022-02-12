@@ -21,7 +21,7 @@ jobs:
           distribution: 'adopt'
       - name: Update permissions
         working-directory: .
-        run: chmod +x ./.github/scripts/*.sh
+        run: chmod +x ./gradlew ./.github/scripts/*.sh
       - name: Check version
         working-directory: .
         run: ./.github/scripts/check_version.sh
