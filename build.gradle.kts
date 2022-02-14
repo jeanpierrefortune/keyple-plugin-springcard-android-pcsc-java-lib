@@ -25,7 +25,7 @@ buildscript {
 //  APP CONFIGURATION
 ///////////////////////////////////////////////////////////////////////////////
 allprojects{
-    group = "org.calypsonet.keyple"
+    group = "com.springcard.keyple"
     repositories {
         mavenLocal()
         maven(url = "https://repo.eclipse.org/service/local/repositories/maven_central/content")

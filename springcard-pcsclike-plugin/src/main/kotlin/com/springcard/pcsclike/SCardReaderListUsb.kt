@@ -1,14 +1,8 @@
-/* **************************************************************************************
- * Copyright (c) 2018-2019 SpringCard - https://www.springcard.com/
- *
- * See the NOTICE file(s) distributed with this work for additional information
- * regarding copyright ownership.
- *
- * This program and the accompanying materials are made available under the terms of the
- * Eclipse Public License 2.0 which is available at http://www.eclipse.org/legal/epl-2.0
- *
- * SPDX-License-Identifier: EPL-2.0
- ************************************************************************************** */
+/*
+ * Copyright (c) 2018-2018-2018 SpringCard - www.springcard.com
+ * All right reserved
+ * This software is covered by the SpringCard SDK License Agreement - see LICENSE.txt
+ */
 package com.springcard.pcsclike
 
 import android.content.Context

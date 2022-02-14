@@ -1,12 +1,12 @@
-# Notices for "Keyple Plugin Springcard PcscLike Android Java Lib" Java implementation
+# Notices for "Keyple Plugin SpringCard PcscLike Android Java Lib" Java implementation
 
-This content is produced and maintained by Calypso Networks Association.
+This content is produced and maintained by **SpringCard**.
 
-More information can be found on [calypsonet.org](http://calypsonet.org).
+More information can be found on [springcard.com](http://www.springcard.com).
 
 ## Trademarks
 
-* Calypso® is a Trademark of the Calypso Networks Association.
+* 
 
 ## Copyright
 
@@ -17,10 +17,7 @@ source code repository logs.
 ## Declared Project Licenses
 
 This program and the accompanying materials are made available under the terms
-of the Eclipse Public License v. 2.0 which is available at
-http://www.eclipse.org/legal/epl-2.0.
-
-SPDX-License-Identifier: EPL-2.0
+of the **SpringCard SDK License Agreement** which is available in `LICENSE.txt`.
    
 ## Third-party Content
 

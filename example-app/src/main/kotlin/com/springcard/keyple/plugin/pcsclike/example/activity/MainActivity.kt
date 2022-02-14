@@ -1,14 +1,8 @@
-/* **************************************************************************************
- * Copyright (c) 2022 SpringCard - https://www.springcard.com/
- *
- * See the NOTICE file(s) distributed with this work for additional information
- * regarding copyright ownership.
- *
- * This program and the accompanying materials are made available under the terms of the
- * Eclipse Public License 2.0 which is available at http://www.eclipse.org/legal/epl-2.0
- *
- * SPDX-License-Identifier: EPL-2.0
- ************************************************************************************** */
+/*
+ * Copyright (c) 2018-2018-2018 SpringCard - www.springcard.com
+ * All right reserved
+ * This software is covered by the SpringCard SDK License Agreement - see LICENSE.txt
+ */
 package com.springcard.keyple.plugin.pcsclike.example.activity
 
 import android.Manifest
@@ -365,8 +359,6 @@ class MainActivity : AbstractExampleActivity(), PluginObserverSpi, BleDeviceScan
                           )
                       }")
 
-        addHeaderEvent("2nd card exchange: read the event log file")
-
         val cardTransaction =
             if (withSam) {
               addActionEvent("Create a secured card transaction with SAM")
@@ -595,6 +587,9 @@ class MainActivity : AbstractExampleActivity(), PluginObserverSpi, BleDeviceScan
       if (pluginEvent.type == PluginEvent.Type.READER_CONNECTED) {
         onReaderConnected(pluginEvent.readerNames.first())
       }
+      if(pluginEvent.type == PluginEvent.Type.READER_DISCONNECTED) {
+        addActionEvent("Reader '${pluginEvent.readerNames.first()}' connected.")
+      }
       // handle reader disconnection here (PluginEvent.Type.READER_DISCONNECTED)
     }
   }
@@ -642,10 +637,14 @@ class MainActivity : AbstractExampleActivity(), PluginObserverSpi, BleDeviceScan
     for (bleDeviceInfo in bluetoothDeviceInfoList) {
       Timber.i("Discovered devices: $bleDeviceInfo")
     }
-    addActionEvent("Compliant BLE device discovered, connecting...")
+    addActionEvent("BLE device discovery is finished.\n${bluetoothDeviceInfoList.size} device(s) discovered.")
     // connect to first discovered device (we should ask the user)
-    androidPcscPlugin
+    if(bluetoothDeviceInfoList.isNotEmpty()) {
+      val bleDevice = bluetoothDeviceInfoList.first()
+      addActionEvent("Connecting to '${bleDevice.name}'")
+      androidPcscPlugin
         .getExtension(AndroidPcscPlugin::class.java)
-        .connectToBleDevice(bluetoothDeviceInfoList.first().address)
+        .connectToBleDevice(bleDevice.address)
+    }
   }
 }

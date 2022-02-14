@@ -1,8 +1,8 @@
-# Keyple Plugin Springcard PcscLike Android Java Library
+# Keyple Plugin SpringCard PcscLike Android Java Library
 
 ## Overview
 
-The **Keyple Plugin Springcard PcscLike Android Java Library** is an add-on to allow an application using Keyple to interact with PC/SC and BLE readers in Android.
+The **Keyple Plugin SpringCard PcscLike Android Java Library** is an add-on to allow an application using Keyple to interact with PC/SC and BLE readers in Android.
 
 ## Examples
 

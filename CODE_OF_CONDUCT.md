@@ -34,7 +34,7 @@ Examples of unacceptable behavior by participants include:
 
 ## Our Responsibilities
 
-With the support of the Calypso Networks Association staff (the “Staff”), project 
+With the support of the SpringCard staff (the “Staff”), project 
 committers and leaders are responsible for clarifying the standards of acceptable 
 behavior and are expected to take appropriate and fair corrective action in response 
 to any instances of unacceptable behavior.
@@ -48,7 +48,7 @@ or harmful.
 ## Scope
 
 This Code of Conduct applies within all project spaces, and it also applies when an 
-individual is representing the Calypso Networks Association project or its community 
+individual is representing the SpringCard project or its community 
 in public spaces. Examples of representing a project or community include posting via 
 an official social media account, or acting as a project representative at an online 
 or offline event. Representation of a project may be further defined and clarified by 
@@ -57,7 +57,7 @@ project committers, leaders, or the Staff.
 ## Enforcement
 
 Instances of abusive, harassing, or otherwise unacceptable behavior may be reported 
-by contacting the Staff at contact@calypsonet.org. All complaints will be reviewed 
+by contacting the Staff at contact@springcard.com. All complaints will be reviewed 
 and investigated and will result in a response that is deemed necessary and appropriate 
 to the circumstances. The Staff is obligated to maintain confidentiality with regard to 
 the reporter of an incident. Further details of specific enforcement policies may be 
