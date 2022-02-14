@@ -1,369 +1,376 @@
-/**
- * Copyright (c) 2018-2019 SpringCard - www.springcard.com
+/*
+ * Copyright (c) 2018-2018-2018 SpringCard - www.springcard.com
  * All right reserved
  * This software is covered by the SpringCard SDK License Agreement - see LICENSE.txt
  */
-
 package com.springcard.pcsclike.ccid
 
-import android.util.Log
-import com.springcard.pcsclike.utils.*
+import com.springcard.pcsclike.utils.RotateLeftOneByte
+import com.springcard.pcsclike.utils.RotateRightOneByte
+import com.springcard.pcsclike.utils.XOR
+import com.springcard.pcsclike.utils.toHexString
 import java.lang.Exception
 import javax.crypto.Cipher
 import javax.crypto.spec.IvParameterSpec
 import javax.crypto.spec.SecretKeySpec
 import kotlin.experimental.xor
 import kotlin.random.Random
-
+import timber.log.Timber
 
 internal class CcidSecure(private val secureConnectionParameters: CcidSecureParameters) {
 
-    private val TAG = this::class.java.simpleName
+  private val protocolCode: Byte = 0x00
+  private val useRandom = true
 
-    private val  protocolCode: Byte = 0x00
-    private val useRandom = true
+  private lateinit var sessionEncKey: MutableList<Byte>
+  private lateinit var sessionMacKey: MutableList<Byte>
+  private lateinit var sessionSendIV: MutableList<Byte>
+  private lateinit var sessionRecvIV: MutableList<Byte>
 
-    private lateinit var sessionEncKey: MutableList<Byte>
-    private lateinit var sessionMacKey: MutableList<Byte>
-    private lateinit var sessionSendIV: MutableList<Byte>
-    private lateinit var sessionRecvIV: MutableList<Byte>
+  enum class ProtocolOpcode(val value: Byte) {
+    Success(0x00),
+    Authenticate(0x0A),
+    Following(0xFF.toByte())
+  }
 
+  fun decryptCcidBuffer(frame: CcidResponse): CcidResponse {
 
-    enum class ProtocolOpcode(val value: Byte) {
-        Success(0x00),
-        Authenticate(0x0A),
-        Following(0xFF.toByte())
+    /* Extract the CMAC */
+    val receivedCmac = frame.raw.takeLast(8)
+    frame.raw = frame.raw.dropLast(8).toMutableList()
+
+    /* Extract the data */
+    var data = frame.raw.drop(10).toMutableList()
+
+    Timber.d("   >     (crypted data) ${data.toHexString()}")
+
+    /* Decipher the data */
+    data = aesCbcDecrypt(sessionEncKey, sessionRecvIV, data)
+
+    Timber.d("   >      (padded data) ${data.toHexString()}")
+
+    var dataLen = data.size
+    while (dataLen > 0 && data[dataLen - 1] == 0x00.toByte()) dataLen--
+
+    if (dataLen == 0 || data[dataLen - 1] != 0x80.toByte()) {
+      val msg = "Padding is invalid (decryption failed/wrong session key?)"
+      Timber.e(msg)
+      throw Exception(msg)
+    }
+    dataLen -= 1
+    data = data.take(dataLen).toMutableList()
+
+    Timber.d("   >       (plain data) ${data.toHexString()}")
+
+    /* Extract the header and re-create a valid buffer */
+    frame.raw = frame.raw.take(10).toMutableList()
+    frame.length = data.size
+    frame.raw.addAll(data)
+
+    /* Compute the CMAC */
+    val computedCmac = computeCmac(sessionMacKey, sessionRecvIV, frame.raw)
+
+    Timber.d("   >${frame.raw.toHexString()} -> CMAC=${computedCmac.take(8).toHexString()}")
+
+    if (receivedCmac != computedCmac.take(8)) {
+      val msg = "CMAC is invalid (wrong session key?)"
+      Timber.e(msg)
+      throw Exception(msg)
     }
 
+    sessionRecvIV = computedCmac
 
-    fun decryptCcidBuffer(frame: CcidResponse): CcidResponse {
+    return frame
+  }
 
-        /* Extract the CMAC */
-        val receivedCmac = frame.raw.takeLast(8)
-        frame.raw = frame.raw.dropLast(8).toMutableList()
+  fun encryptCcidBuffer(frame: CcidCommand): CcidCommand {
 
-        /* Extract the data */
-        var data = frame.raw.drop(10).toMutableList()
+    /* Compute the CMAC of the plain buffer */
+    val cmac = computeCmac(sessionMacKey, sessionSendIV, frame.raw)
 
-        Log.d(TAG, "   >     (crypted data) ${data.toHexString()}")
+    Timber.d("   <${frame.raw.toHexString()} -> CMAC=${cmac.take(8).toMutableList().toHexString()}")
 
-        /* Decipher the data */
-        data = aesCbcDecrypt(sessionEncKey, sessionRecvIV, data)
+    /* Extract the data */
+    var data = frame.raw.drop(10).toMutableList()
 
-        Log.d(TAG, "   >      (padded data) ${data.toHexString()}")
+    Timber.d("   <       (plain data) ${data.toHexString()}")
 
-        var dataLen = data.size
-        while (dataLen > 0 && data[dataLen - 1] == 0x00.toByte())
-            dataLen--
+    /* Cipher the data */
+    data.add(0x80.toByte())
+    while (data.size % 16 != 0) {
+      data.add(0x00)
+    }
 
-        if (dataLen == 0 || data[dataLen - 1] != 0x80.toByte()) {
-            val msg = "Padding is invalid (decryption failed/wrong session key?)"
-            Log.e(TAG, msg)
-            throw Exception(msg)
+    Timber.d("   <      (padded data) ${data.toHexString()}")
+
+    data = aesCbcEncrypt(sessionEncKey, sessionSendIV, data)
+
+    Timber.d("   <     (crypted data) ${data.toHexString()}")
+
+    /* Update the length */
+    frame.length = data.size + 8
+    frame.ciphered = true
+
+    /* Re-create the buffer */
+    frame.raw = frame.raw.take(10).toMutableList()
+    frame.raw.addAll(data)
+    frame.raw.addAll(cmac.take(8))
+
+    sessionSendIV = cmac
+
+    return frame
+  }
+
+  private fun getRandom(length: Int): MutableList<Byte> {
+    var result = mutableListOf<Byte>()
+    if (!useRandom) {
+      for (i in 0 until length) {
+        result.add((0xA0 or (i and 0x0F)).toByte())
+      }
+    } else {
+      result = Random.nextBytes(length).toMutableList()
+    }
+    return result
+  }
+
+  private fun computeCmac(
+      key: MutableList<Byte>,
+      iv: MutableList<Byte>,
+      buffer: MutableList<Byte>
+  ): MutableList<Byte> {
+    var cmac: MutableList<Byte>
+    var actualLength: Int = buffer.size + 1
+
+    cmac = iv
+
+    Timber.d("Compute CMAC")
+
+    while ((actualLength % 16) != 0) actualLength++
+
+    for (i in 0 until actualLength step 16) {
+      val block = mutableListOf<Byte>()
+
+      for (j in 0 until 16) {
+        when {
+          (i + j) < buffer.size -> block.add(buffer[i + j])
+          (i + j) == buffer.size -> block.add(0x80.toByte())
+          else -> block.add(0x00)
         }
-        dataLen -= 1
-        data = data.take(dataLen).toMutableList()
+      }
 
-        Log.d(TAG, "   >       (plain data) ${data.toHexString()}")
+      Timber.d("\tBlock=${block.toHexString()}, IV=${cmac.toHexString()}, key=${key.toHexString()}")
 
-        /* Extract the header and re-create a valid buffer */
-        frame.raw = frame.raw.take(10).toMutableList()
-        frame.length = data.size
-        frame.raw.addAll(data)
+      for (j in 0 until 16) block[j] = block[j].xor(cmac[j])
 
-        /* Compute the CMAC */
-        val computedCmac = computeCmac(sessionMacKey, sessionRecvIV, frame.raw)
+      Timber.d("\tBlock XOR=${block.toHexString()}")
 
-        Log.d(TAG, "   >${frame.raw.toHexString()} -> CMAC=${computedCmac.take(8).toHexString()}")
+      cmac = aesEcbEncrypt(key, block)
 
-        if (receivedCmac != computedCmac.take(8)) {
-            val msg = "CMAC is invalid (wrong session key?)"
-            Log.e(TAG, msg)
-            throw Exception(msg)
-        }
-
-        sessionRecvIV = computedCmac
-
-        return frame
+      Timber.d("\t\t-> ${cmac.toHexString()}")
     }
 
+    return cmac
+  }
 
-    fun encryptCcidBuffer(frame: CcidCommand): CcidCommand {
+  private fun aesCbcEncrypt(
+      key: MutableList<Byte>,
+      iv: MutableList<Byte>,
+      buffer: MutableList<Byte>
+  ): MutableList<Byte> {
+    val cipher = Cipher.getInstance("AES/CBC/NoPadding")
+    val keyCipher = SecretKeySpec(key.toByteArray(), 0, key.size, "AES")
+    val initVector = IvParameterSpec(iv.toByteArray())
+    cipher.init(Cipher.ENCRYPT_MODE, keyCipher, initVector)
+    return cipher.doFinal(buffer.toByteArray()).toMutableList()
+  }
 
-        /* Compute the CMAC of the plain buffer */
-        val cmac = computeCmac(sessionMacKey, sessionSendIV, frame.raw)
+  private fun aesCbcDecrypt(
+      key: MutableList<Byte>,
+      iv: MutableList<Byte>,
+      buffer: MutableList<Byte>
+  ): MutableList<Byte> {
+    val cipher = Cipher.getInstance("AES/CBC/NoPadding")
+    val keyCipher = SecretKeySpec(key.toByteArray(), 0, key.size, "AES")
+    val initVector = IvParameterSpec(iv.toByteArray())
+    cipher.init(Cipher.DECRYPT_MODE, keyCipher, initVector)
+    return cipher.doFinal(buffer.toByteArray()).toMutableList()
+  }
 
-        Log.d(TAG, "   <${frame.raw.toHexString()} -> CMAC=${cmac.take(8).toMutableList().toHexString()}")
+  private fun aesEcbEncrypt(key: MutableList<Byte>, buffer: MutableList<Byte>): MutableList<Byte> {
+    val cipher = Cipher.getInstance("AES/ECB/NoPadding")
+    val keyCipher = SecretKeySpec(key.toByteArray(), 0, key.size, "AES")
+    cipher.init(Cipher.ENCRYPT_MODE, keyCipher)
+    return cipher.doFinal(buffer.toByteArray()).toMutableList()
+  }
 
-        /* Extract the data */
-        var data = frame.raw.drop(10).toMutableList()
+  private fun aesEcbDecrypt(key: MutableList<Byte>, buffer: MutableList<Byte>): MutableList<Byte> {
+    val cipher = Cipher.getInstance("AES/ECB/NoPadding")
+    val keyCipher = SecretKeySpec(key.toByteArray(), 0, key.size, "AES")
+    cipher.init(Cipher.DECRYPT_MODE, keyCipher)
+    return cipher.doFinal(buffer.toByteArray()).toMutableList()
+  }
 
-        Log.d(TAG, "   <       (plain data) ${data.toHexString()}")
+  private fun cleanupAuthentication() {
+    sessionEncKey = mutableListOf()
+    sessionMacKey = mutableListOf()
+    sessionSendIV = mutableListOf()
+    sessionRecvIV = mutableListOf()
+  }
 
-        /* Cipher the data */
-        data.add(0x80.toByte())
-        while (data.size % 16 != 0) {
-            data.add(0x00)
-        }
+  private var rndA = mutableListOf<Byte>()
+  private var rndB = mutableListOf<Byte>()
 
-        Log.d(TAG, "   <      (padded data) ${data.toHexString()}")
+  fun hostAuthCmd(): ByteArray {
+    cleanupAuthentication()
 
-        data = aesCbcEncrypt(sessionEncKey, sessionSendIV, data)
+    val keySelect = secureConnectionParameters.keyIndex.value
+    val keyValue = secureConnectionParameters.keyValue
 
-        Log.d(TAG, "   <     (crypted data) ${data.toHexString()}")
+    Timber.d("Running AES mutual authentication using key 0x${String.format("%02X", keySelect)}")
 
-        /* Update the length */
-        frame.length = data.size + 8
-        frame.ciphered = true
+    /* Generate host nonce */
+    rndA = getRandom(16)
 
-        /* Re-create the buffer */
-        frame.raw = frame.raw.take(10).toMutableList()
-        frame.raw.addAll(data)
-        frame.raw.addAll(cmac.take(8))
+    Timber.d("key=${keyValue.toHexString()}")
+    Timber.d("rndA=${rndA.toHexString()}")
 
-        sessionSendIV = cmac
+    /* Host->Device AUTHENTICATE command */
+    /* --------------------------------- */
 
-        return frame
+    val cmdAuthenticate = mutableListOf<Byte>()
+
+    cmdAuthenticate.add(protocolCode)
+    cmdAuthenticate.add(ProtocolOpcode.Authenticate.value)
+    cmdAuthenticate.add(0x01) /* Version & mode = AES128 */
+    cmdAuthenticate.add(keySelect)
+
+    Timber.d("   <                    ${cmdAuthenticate.toHexString()}")
+
+    return cmdAuthenticate.toByteArray()
+  }
+
+  fun deviceRespStep1(response: ByteArray): Boolean {
+
+    val rspStep1 = response.toMutableList()
+
+    Timber.d("   >                    ${rspStep1.toHexString()}")
+
+    /* Device->Host Authentication Step 1 */
+    /* ---------------------------------- */
+
+    if (rspStep1.size < 1) {
+      Timber.d("Authentication failed at step 1 (response is too short)")
+      return false
     }
 
-    private fun getRandom(length: Int): MutableList<Byte>
-    {
-        var result = mutableListOf<Byte>()
-        if (!useRandom) {
-            for (i in 0 until length) {
-                result.add((0xA0 or (i and 0x0F)).toByte())
-            }
-        }
-        else {
-            result = Random.nextBytes(length).toMutableList()
-        }
-        return result
+    if (rspStep1[0] != ProtocolOpcode.Following.value) {
+      Timber.d(
+          "Authentication failed at step 1 (the device has reported an error: 0x${String.format("%02X", rspStep1[0])})")
+      return false
     }
 
-    private fun computeCmac(key: MutableList<Byte>, iv: MutableList<Byte>, buffer: MutableList<Byte>): MutableList<Byte> {
-        var cmac: MutableList<Byte>
-        var actualLength: Int = buffer.size + 1
-
-        cmac = iv
-
-        Log.d(TAG, "Compute CMAC")
-
-        while ((actualLength % 16) != 0) actualLength++
-
-        for (i in 0 until actualLength step 16) {
-            val block = mutableListOf<Byte>()
-
-            for (j in 0 until 16) {
-                when {
-                    (i + j) < buffer.size -> block.add(buffer[i + j])
-                    (i + j) == buffer.size -> block.add(0x80.toByte())
-                    else -> block.add(0x00)
-                }
-            }
-
-            Log.d(TAG, "\tBlock=${block.toHexString()}, IV=${cmac.toHexString()}, key=${key.toHexString()}")
-
-            for (j in 0 until 16)
-                block[j] = block[j].xor(cmac[j])
-
-            Log.d(TAG, "\tBlock XOR=${block.toHexString()}")
-
-            cmac = aesEcbEncrypt(key, block)
-
-            Log.d(TAG, "\t\t-> ${cmac.toHexString()}")
-        }
-
-        return cmac
-
+    if (rspStep1.size != 17) {
+      Timber.d("Authentication failed at step 1 (response does not have the expected format)")
+      return false
     }
 
-    private fun  aesCbcEncrypt(key: MutableList<Byte>, iv: MutableList<Byte>, buffer: MutableList<Byte>): MutableList<Byte> {
-        val cipher = Cipher.getInstance("AES/CBC/NoPadding")
-        val keyCipher = SecretKeySpec(key.toByteArray(), 0, key.size, "AES")
-        val initVector = IvParameterSpec(iv.toByteArray())
-        cipher.init(Cipher.ENCRYPT_MODE, keyCipher, initVector)
-        return cipher.doFinal(buffer.toByteArray()).toMutableList()
+    return true
+  }
+
+  fun hostCmdStep2(rspStep1: MutableList<Byte>): ByteArray {
+    val t = rspStep1.slice(1..16).toMutableList()
+    rndB = aesEcbDecrypt(secureConnectionParameters.keyValue, t)
+
+    Timber.d("rndB=${rndB.toHexString()}")
+
+    /* Host->Device Authentication Step 2 */
+    /* ---------------------------------- */
+
+    val cmdStep2 = mutableListOf<Byte>()
+
+    cmdStep2.add(protocolCode)
+    cmdStep2.add(ProtocolOpcode.Following.value)
+    cmdStep2.addAll(aesEcbEncrypt(secureConnectionParameters.keyValue, rndA))
+    cmdStep2.addAll(
+        aesEcbEncrypt(
+            secureConnectionParameters.keyValue,
+            rndB.toByteArray().RotateLeftOneByte().toMutableList()))
+
+    Timber.d("   <                    ${cmdStep2.toHexString()}")
+
+    return cmdStep2.toByteArray()
+  }
+
+  fun deviceRespStep3(response: ByteArray): Boolean {
+
+    val rspStep3 = response.toMutableList()
+
+    Timber.d("   >                    ${rspStep3.toHexString()}")
+
+    /* Device->Host Authentication Step 3 */
+    /* ---------------------------------- */
+
+    if (rspStep3.size < 1) {
+      Timber.d("Authentication failed at step 3")
+      return false
     }
 
-    private fun aesCbcDecrypt(key: MutableList<Byte>, iv: MutableList<Byte>, buffer: MutableList<Byte>): MutableList<Byte> {
-        val cipher = Cipher.getInstance("AES/CBC/NoPadding")
-        val keyCipher = SecretKeySpec(key.toByteArray(), 0, key.size, "AES")
-        val initVector = IvParameterSpec(iv.toByteArray())
-        cipher.init(Cipher.DECRYPT_MODE, keyCipher, initVector)
-        return cipher.doFinal(buffer.toByteArray()).toMutableList()
+    if (rspStep3[0] != ProtocolOpcode.Success.value) {
+      Timber.d(
+          "Authentication failed at step 3 (the device has reported an error: 0x${String.format("%02X", rspStep3[0])})")
+      return false
     }
 
-    private fun aesEcbEncrypt(key: MutableList<Byte>, buffer: MutableList<Byte>): MutableList<Byte> {
-        val cipher = Cipher.getInstance("AES/ECB/NoPadding")
-        val keyCipher = SecretKeySpec(key.toByteArray(), 0, key.size, "AES")
-        cipher.init(Cipher.ENCRYPT_MODE, keyCipher)
-        return cipher.doFinal(buffer.toByteArray()).toMutableList()
+    if (rspStep3.size != 17) {
+      Timber.d("Authentication failed at step 3 (response does not have the expected format)")
+      return false
     }
 
-    private fun aesEcbDecrypt(key: MutableList<Byte>, buffer: MutableList<Byte>): MutableList<Byte> {
-        val cipher = Cipher.getInstance("AES/ECB/NoPadding")
-        val keyCipher = SecretKeySpec(key.toByteArray(), 0, key.size, "AES")
-        cipher.init(Cipher.DECRYPT_MODE, keyCipher)
-        return cipher.doFinal(buffer.toByteArray()).toMutableList()
+    var t = rspStep3.slice(1..16).toMutableList()
+    t = aesEcbDecrypt(secureConnectionParameters.keyValue, t)
+    t = t.toByteArray().RotateRightOneByte().toMutableList()
+
+    if (t != rndA) {
+      Timber.d("${t.toHexString()}!=${rndA.toHexString()}")
+      Timber.d("Authentication failed at step 3 (device's cryptogram is invalid)")
+      return false
     }
 
-    private fun cleanupAuthentication() {
-        sessionEncKey = mutableListOf()
-        sessionMacKey = mutableListOf()
-        sessionSendIV = mutableListOf()
-        sessionRecvIV = mutableListOf()
-    }
+    /* Session keys and first init vector */
+    /* ---------------------------------- */
 
-    private var rndA = mutableListOf<Byte>()
-    private var rndB = mutableListOf<Byte>()
+    val sv1 = mutableListOf<Byte>()
+    sv1.addAll(0, rndA.slice(0..3))
+    sv1.addAll(4, rndB.slice(0..3))
+    sv1.addAll(8, rndA.slice(8..11))
+    sv1.addAll(12, rndB.slice(8..11))
 
-    fun hostAuthCmd(): ByteArray {
-        cleanupAuthentication()
+    Timber.d("SV1=${sv1.toHexString()}")
 
-        val keySelect = secureConnectionParameters.keyIndex.value
-        val keyValue = secureConnectionParameters.keyValue
+    val sv2 = mutableListOf<Byte>()
+    sv2.addAll(0, rndA.slice(4..7))
+    sv2.addAll(4, rndB.slice(4..7))
+    sv2.addAll(8, rndA.slice(12..15))
+    sv2.addAll(12, rndB.slice(12..15))
 
-        Log.d(TAG, "Running AES mutual authentication using key 0x${String.format("%02X", keySelect)}")
+    Timber.d("SV2=${sv2.toHexString()}")
 
-        /* Generate host nonce */
-        rndA = getRandom(16)
+    sessionEncKey = aesEcbEncrypt(secureConnectionParameters.keyValue, sv1)
 
-        Log.d(TAG, "key=${keyValue.toHexString()}")
-        Log.d(TAG, "rndA=${rndA.toHexString()}")
+    Timber.d("Kenc=${sessionEncKey.toHexString()}")
 
-        /* Host->Device AUTHENTICATE command */
-        /* --------------------------------- */
+    sessionMacKey = aesEcbEncrypt(secureConnectionParameters.keyValue, sv2)
 
-        val cmdAuthenticate = mutableListOf<Byte>()
+    Timber.d("Kmac=${sessionMacKey.toHexString()}")
 
-        cmdAuthenticate.add(protocolCode)
-        cmdAuthenticate.add(ProtocolOpcode.Authenticate.value)
-        cmdAuthenticate.add(0x01) /* Version & mode = AES128 */
-        cmdAuthenticate.add(keySelect)
+    t = XOR(rndA, rndB)
+    t = aesEcbEncrypt(sessionMacKey, t)
 
-        Log.d(TAG, "   <                    ${cmdAuthenticate.toHexString()}")
+    Timber.d("IV0=${t.toHexString()}")
 
-        return cmdAuthenticate.toByteArray()
-    }
+    sessionSendIV = t
+    sessionRecvIV = t
 
-    fun deviceRespStep1(response: ByteArray): Boolean {
-
-        val rspStep1 = response.toMutableList()
-
-        Log.d(TAG, "   >                    ${rspStep1.toHexString()}")
-
-        /* Device->Host Authentication Step 1 */
-        /* ---------------------------------- */
-
-        if (rspStep1.size < 1) {
-            Log.d(TAG, "Authentication failed at step 1 (response is too short)")
-            return false
-        }
-
-        if (rspStep1[0] != ProtocolOpcode.Following.value) {
-            Log.d(TAG, "Authentication failed at step 1 (the device has reported an error: 0x${String.format("%02X", rspStep1[0])})")
-            return false
-        }
-
-        if (rspStep1.size != 17) {
-            Log.d(TAG, "Authentication failed at step 1 (response does not have the expected format)")
-            return false
-        }
-
-        return true
-    }
-
-    fun hostCmdStep2(rspStep1: MutableList<Byte>): ByteArray {
-        val t = rspStep1.slice(1..16).toMutableList()
-        rndB = aesEcbDecrypt(secureConnectionParameters.keyValue, t)
-
-        Log.d(TAG, "rndB=${rndB.toHexString()}")
-
-        /* Host->Device Authentication Step 2 */
-        /* ---------------------------------- */
-
-        val cmdStep2 = mutableListOf<Byte>()
-
-        cmdStep2.add(protocolCode)
-        cmdStep2.add(ProtocolOpcode.Following.value)
-        cmdStep2.addAll(aesEcbEncrypt(secureConnectionParameters.keyValue, rndA))
-        cmdStep2.addAll(aesEcbEncrypt(secureConnectionParameters.keyValue, rndB.toByteArray().RotateLeftOneByte().toMutableList()))
-
-        Log.d(TAG, "   <                    ${cmdStep2.toHexString()}")
-
-        return cmdStep2.toByteArray()
-    }
-
-    fun deviceRespStep3(response: ByteArray): Boolean {
-
-        val rspStep3 = response.toMutableList()
-
-        Log.d(TAG, "   >                    ${rspStep3.toHexString()}")
-
-        /* Device->Host Authentication Step 3 */
-        /* ---------------------------------- */
-
-        if (rspStep3.size < 1) {
-            Log.d(TAG, "Authentication failed at step 3")
-            return false
-        }
-
-        if (rspStep3[0] != ProtocolOpcode.Success.value) {
-            Log.d(TAG, "Authentication failed at step 3 (the device has reported an error: 0x${String.format("%02X", rspStep3[0])})")
-            return false
-        }
-
-        if (rspStep3.size != 17) {
-            Log.d(TAG, "Authentication failed at step 3 (response does not have the expected format)")
-            return false
-        }
-
-        var t = rspStep3.slice(1..16).toMutableList()
-        t = aesEcbDecrypt(secureConnectionParameters.keyValue, t)
-        t = t.toByteArray().RotateRightOneByte().toMutableList()
-
-        if (t !=  rndA) {
-            Log.d(TAG, "${t.toHexString()}!=${rndA.toHexString()}")
-            Log.d(TAG, "Authentication failed at step 3 (device's cryptogram is invalid)")
-            return false
-        }
-
-        /* Session keys and first init vector */
-        /* ---------------------------------- */
-
-        val sv1 = mutableListOf<Byte>()
-        sv1.addAll(0, rndA.slice(0..3))
-        sv1.addAll(4, rndB.slice(0..3))
-        sv1.addAll(8, rndA.slice(8..11))
-        sv1.addAll(12, rndB.slice(8..11))
-
-        Log.d(TAG, "SV1=${sv1.toHexString()}")
-
-        val sv2 = mutableListOf<Byte>()
-        sv2.addAll(0, rndA.slice(4..7))
-        sv2.addAll(4, rndB.slice(4..7))
-        sv2.addAll(8, rndA.slice(12..15))
-        sv2.addAll(12, rndB.slice(12..15))
-
-        Log.d(TAG, "SV2=${sv2.toHexString()}")
-
-        sessionEncKey = aesEcbEncrypt(secureConnectionParameters.keyValue, sv1)
-
-        Log.d(TAG, "Kenc=${sessionEncKey.toHexString()}")
-
-        sessionMacKey = aesEcbEncrypt(secureConnectionParameters.keyValue, sv2)
-
-        Log.d(TAG, "Kmac=${sessionMacKey.toHexString()}")
-
-        t = XOR(rndA, rndB)
-        t = aesEcbEncrypt(sessionMacKey, t)
-
-        Log.d(TAG, "IV0=${t.toHexString()}")
-
-        sessionSendIV = t
-        sessionRecvIV = t
-
-        return true
-    }
+    return true
+  }
 }
-

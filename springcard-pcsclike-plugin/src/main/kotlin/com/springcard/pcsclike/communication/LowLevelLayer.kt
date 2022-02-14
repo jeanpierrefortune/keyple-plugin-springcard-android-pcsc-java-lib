@@ -1,20 +1,19 @@
-/**
- * Copyright (c) 2018-2019 SpringCard - www.springcard.com
+/*
+ * Copyright (c) 2018-2018-2018 SpringCard - www.springcard.com
  * All right reserved
  * This software is covered by the SpringCard SDK License Agreement - see LICENSE.txt
  */
-
 package com.springcard.pcsclike.communication
 
 import android.content.Context
 
 interface LowLevelLayer {
 
-    fun connect(ctx: Context)
+  fun connect(ctx: Context)
 
-    fun disconnect()
+  fun disconnect()
 
-    fun close()
+  fun close()
 
-    fun write(data: List<Byte>)
+  fun write(data: List<Byte>)
 }

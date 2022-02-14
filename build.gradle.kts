@@ -25,7 +25,7 @@ buildscript {
 //  APP CONFIGURATION
 ///////////////////////////////////////////////////////////////////////////////
 allprojects{
-    group = "org.calypsonet.keyple"
+    group = "com.springcard.keyple"
     repositories {
         mavenLocal()
         maven(url = "https://repo.eclipse.org/service/local/repositories/maven_central/content")
@@ -43,12 +43,12 @@ tasks {
     spotless {
         kotlin{
             target("**/*.kt")
-            ktlint()
-            licenseHeaderFile("${project.rootDir}/LICENSE_HEADER")
+            ktfmt()
+            licenseHeaderFile("${project.rootDir}/SPRINGCARD_LICENSE_HEADER")
         }
         java {
             target("**/src/**/*.java")
-            licenseHeaderFile("${project.rootDir}/LICENSE_HEADER")
+            licenseHeaderFile("${project.rootDir}/SPRINGCARD_LICENSE_HEADER")
             importOrder("java", "javax", "org", "com", "")
             removeUnusedImports()
             googleJavaFormat()

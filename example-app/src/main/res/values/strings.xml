@@ -1,5 +1,5 @@
 <resources>
-    <string name="app_name">Keyple Bluebird Demo</string>
+    <string name="app_name">Keyple SpringCard PcscLike Demo</string>
     <string name="open_navigation_drawer">Open menu</string>
     <string name="close_navigation_drawer">Close Menu</string>
     <string name="alert_dialog_title">NFC Error</string>

@@ -1,10 +1,10 @@
-# Contributing to "Keyple Plugin Springcard PcscLike Android Java Lib" implementation
+# Contributing to "Keyple Plugin SpringCard PcscLike Android Java Lib" implementation
 
 Thanks for your interest in this project.
 
 ## Contributing
 
-1. [Fork](https://help.github.com/articles/fork-a-repo) the [calypsonet/keyple-plugin-springcard-pcsclike-android-java-lib](https://github.com/calypsonet/keyple-plugin-springcard-pcsclike-android-java-lib) repository
+1. [Fork](https://help.github.com/articles/fork-a-repo) the [springcard/keyple-plugin-springcard-pcsclike-android-java-lib](https://github.com/springcard/keyple-plugin-springcard-pcsclike-android-java-lib) repository
 2. Clone repository: `git clone https://github.com/[your_github_username]/keyple-plugin-springcard-pcsclike-android-java-lib.git`
 3. Create your feature branch: `git checkout -b my-new-feature`
 4. Make your changes
