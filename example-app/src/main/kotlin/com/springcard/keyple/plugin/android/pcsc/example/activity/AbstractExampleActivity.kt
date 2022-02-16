@@ -3,7 +3,7 @@
  * All right reserved
  * This software is covered by the SpringCard SDK License Agreement - see LICENSE.txt
  */
-package com.springcard.keyple.plugin.pcsclike.example.activity
+package com.springcard.keyple.plugin.android.pcsc.example.activity
 
 import android.os.Bundle
 import android.view.WindowManager
@@ -15,10 +15,10 @@ import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.google.android.material.navigation.NavigationView
 import com.springcard.keyple.plugin.android.pcsc.AndroidPcscReader
-import com.springcard.keyple.plugin.pcsclike.example.R
-import com.springcard.keyple.plugin.pcsclike.example.adapter.EventAdapter
-import com.springcard.keyple.plugin.pcsclike.example.model.EventModel
-import com.springcard.keyple.plugin.pcsclike.example.util.CalypsoClassicInfo.SAM_PROFILE_NAME
+import com.springcard.keyple.plugin.android.pcsc.example.R
+import com.springcard.keyple.plugin.android.pcsc.example.adapter.EventAdapter
+import com.springcard.keyple.plugin.android.pcsc.example.model.EventModel
+import com.springcard.keyple.plugin.android.pcsc.example.util.CalypsoClassicInfo.SAM_PROFILE_NAME
 import kotlinx.android.synthetic.main.activity_main.drawerLayout
 import kotlinx.android.synthetic.main.activity_main.eventRecyclerView
 import kotlinx.android.synthetic.main.activity_main.navigationView

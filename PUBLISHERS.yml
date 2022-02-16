@@ -1,4 +1,4 @@
-url: https://github.com/springcard/keyple-plugin-springcard-pcsclike-android-java-lib
+url: https://github.com/springcard/keyple-plugin-springcard-android-pcsc-java-lib
 organization:
   name: SpringCard
   url: https://www.springcard.com/
@@ -10,9 +10,9 @@ developers:
   - name: SpringCard
     email: support-dev@springcard.com
 scm:
-  connection: scm:git:git://github.com/springcard/keyple-plugin-springcard-pcsclike-android-java-lib.git
-  developerConnection: scm:git:https://github.com/springcard/keyple-plugin-springcard-pcsclike-android-java-lib.git
-  url: https://github.com/springcard/keyple-plugin-springcard-pcsclike-android-java-lib
+  connection: scm:git:git://github.com/springcard/keyple-plugin-springcard-android-pcsc-java-lib.git
+  developerConnection: scm:git:https://github.com/springcard/keyple-plugin-springcard-android-pcsc-java-lib.git
+  url: https://github.com/springcard/keyple-plugin-springcard-android-pcsc-java-lib
 ciManagement:
   system: GitHub Actions
-  url: https://github.com/springcard/keyple-plugin-springcard-pcsclike-android-java-lib/actions
+  url: https://github.com/springcard/keyple-plugin-springcard-android-pcsc-java-lib/actions

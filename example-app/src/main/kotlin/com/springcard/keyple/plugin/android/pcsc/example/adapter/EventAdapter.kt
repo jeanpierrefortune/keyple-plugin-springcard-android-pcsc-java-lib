@@ -3,17 +3,17 @@
  * All right reserved
  * This software is covered by the SpringCard SDK License Agreement - see LICENSE.txt
  */
-package com.springcard.keyple.plugin.pcsclike.example.adapter
+package com.springcard.keyple.plugin.android.pcsc.example.adapter
 
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.RadioButton
 import androidx.recyclerview.widget.RecyclerView
-import com.springcard.keyple.plugin.pcsclike.example.R
-import com.springcard.keyple.plugin.pcsclike.example.model.ChoiceEventModel
-import com.springcard.keyple.plugin.pcsclike.example.model.EventModel
-import com.springcard.keyple.plugin.pcsclike.example.util.getColorResource
+import com.springcard.keyple.plugin.android.pcsc.example.R
+import com.springcard.keyple.plugin.android.pcsc.example.model.ChoiceEventModel
+import com.springcard.keyple.plugin.android.pcsc.example.model.EventModel
+import com.springcard.keyple.plugin.android.pcsc.example.util.getColorResource
 import kotlinx.android.synthetic.main.card_action_event.view.cardActionTextView
 import kotlinx.android.synthetic.main.card_choice_event.view.choiceRadioGroup
 

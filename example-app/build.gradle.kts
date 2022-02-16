@@ -18,7 +18,7 @@ android {
     buildToolsVersion("30.0.2")
 
     defaultConfig {
-        applicationId("com.springcard.keyple.plugin.pcsclike.example")
+        applicationId("com.springcard.keyple.plugin.android.pcsc.example")
         minSdkVersion(21)
         targetSdkVersion(29)
         versionName(project.version.toString())

@@ -3,7 +3,7 @@
  * All right reserved
  * This software is covered by the SpringCard SDK License Agreement - see LICENSE.txt
  */
-package com.springcard.keyple.plugin.pcsclike.example.activity
+package com.springcard.keyple.plugin.android.pcsc.example.activity
 
 import android.Manifest
 import android.app.ProgressDialog
@@ -19,11 +19,11 @@ import com.springcard.keyple.plugin.android.pcsc.AndroidPcscPlugin
 import com.springcard.keyple.plugin.android.pcsc.AndroidPcscPluginFactoryProvider
 import com.springcard.keyple.plugin.android.pcsc.AndroidPcscSupportContactlessProtocols
 import com.springcard.keyple.plugin.android.pcsc.BleDeviceInfo
+import com.springcard.keyple.plugin.android.pcsc.example.R
+import com.springcard.keyple.plugin.android.pcsc.example.dialog.PermissionDeniedDialog
+import com.springcard.keyple.plugin.android.pcsc.example.util.CalypsoClassicInfo
+import com.springcard.keyple.plugin.android.pcsc.example.util.PermissionHelper
 import com.springcard.keyple.plugin.android.pcsc.spi.BleDeviceScannerSpi
-import com.springcard.keyple.plugin.pcsclike.example.R
-import com.springcard.keyple.plugin.pcsclike.example.dialog.PermissionDeniedDialog
-import com.springcard.keyple.plugin.pcsclike.example.util.CalypsoClassicInfo
-import com.springcard.keyple.plugin.pcsclike.example.util.PermissionHelper
 import java.util.concurrent.atomic.AtomicBoolean
 import kotlinx.android.synthetic.main.activity_main.*
 import kotlinx.coroutines.CoroutineScope

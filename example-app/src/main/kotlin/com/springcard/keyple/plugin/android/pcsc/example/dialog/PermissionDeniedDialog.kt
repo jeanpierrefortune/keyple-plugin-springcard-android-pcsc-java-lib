@@ -3,13 +3,13 @@
  * All right reserved
  * This software is covered by the SpringCard SDK License Agreement - see LICENSE.txt
  */
-package com.springcard.keyple.plugin.pcsclike.example.dialog
+package com.springcard.keyple.plugin.android.pcsc.example.dialog
 
 import android.app.Dialog
 import android.os.Bundle
 import androidx.appcompat.app.AlertDialog
 import androidx.fragment.app.DialogFragment
-import com.springcard.keyple.plugin.pcsclike.example.R
+import com.springcard.keyple.plugin.android.pcsc.example.R
 
 class PermissionDeniedDialog : DialogFragment() {
 

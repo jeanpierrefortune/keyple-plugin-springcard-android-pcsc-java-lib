@@ -3,7 +3,7 @@
  * All right reserved
  * This software is covered by the SpringCard SDK License Agreement - see LICENSE.txt
  */
-package com.springcard.keyple.plugin.pcsclike.example.util
+package com.springcard.keyple.plugin.android.pcsc.example.util
 
 /**
  * Helper class to provide specific elements to handle Calypso cards.
