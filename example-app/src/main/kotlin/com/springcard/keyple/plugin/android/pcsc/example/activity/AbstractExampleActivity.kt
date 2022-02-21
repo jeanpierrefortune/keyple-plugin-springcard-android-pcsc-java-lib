@@ -34,6 +34,7 @@ import org.calypsonet.terminal.reader.CardReaderEvent
 import org.calypsonet.terminal.reader.spi.CardReaderObservationExceptionHandlerSpi
 import org.calypsonet.terminal.reader.spi.CardReaderObserverSpi
 import org.eclipse.keyple.card.calypso.CalypsoExtensionService
+import org.eclipse.keyple.core.service.ObservableReader
 import org.eclipse.keyple.core.service.Plugin
 import org.eclipse.keyple.core.service.Reader
 import org.eclipse.keyple.core.service.resource.CardResourceProfileConfigurator
@@ -50,7 +51,7 @@ abstract class AbstractExampleActivity :
     CardReaderObserverSpi,
     CardReaderObservationExceptionHandlerSpi {
 
-  protected var cardReader: Reader? = null
+  internal lateinit var cardReader: ObservableReader
   protected lateinit var samReader: Reader
 
   /** Use to modify event update behaviour regarding current use case execution */
@@ -65,7 +66,7 @@ abstract class AbstractExampleActivity :
 
   protected var useCase: UseCase? = null
 
-  protected lateinit var calypsoCardExtensionProvider: CalypsoExtensionService
+  val calypsoCardExtensionProvider = CalypsoExtensionService.getInstance()
 
   override fun onCreate(savedInstanceState: Bundle?) {
     super.onCreate(savedInstanceState)

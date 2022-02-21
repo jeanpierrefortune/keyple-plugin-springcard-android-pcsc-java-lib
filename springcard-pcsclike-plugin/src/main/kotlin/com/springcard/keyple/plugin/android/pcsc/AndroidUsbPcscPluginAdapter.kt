@@ -22,7 +22,7 @@ import com.springcard.pcsclike.SCardReaderList
 import org.xmlpull.v1.XmlPullParser
 import timber.log.Timber
 
-/** Provides the means to manage USB devices. */
+/** Provides the specific means to manage USB devices. */
 internal class AndroidUsbPcscPluginAdapter(context: Context) :
     AbstractAndroidPcscPluginAdapter(context) {
   private lateinit var usbAttachReceiver: BroadcastReceiver

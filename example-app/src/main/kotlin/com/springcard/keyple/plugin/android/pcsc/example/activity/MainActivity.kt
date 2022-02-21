@@ -41,7 +41,6 @@ import org.calypsonet.terminal.reader.ObservableCardReader
 import org.calypsonet.terminal.reader.selection.CardSelectionManager
 import org.calypsonet.terminal.reader.selection.CardSelectionResult
 import org.calypsonet.terminal.reader.selection.ScheduledCardSelectionsResponse
-import org.eclipse.keyple.card.calypso.CalypsoExtensionService
 import org.eclipse.keyple.core.common.KeyplePluginExtensionFactory
 import org.eclipse.keyple.core.service.ConfigurableReader
 import org.eclipse.keyple.core.service.KeyplePluginException
@@ -113,8 +112,7 @@ class MainActivity : AbstractExampleActivity(), PluginObserverSpi, DeviceScanner
       builder.show()
     } else {
       addActionEvent("Start card Read Write Mode")
-      (cardReader as ObservableReader).startCardDetection(
-          ObservableCardReader.DetectionMode.REPEATING)
+      cardReader.startCardDetection(ObservableCardReader.DetectionMode.REPEATING)
     }
   }
 
@@ -192,7 +190,7 @@ class MainActivity : AbstractExampleActivity(), PluginObserverSpi, DeviceScanner
     if (areReadersInitialized.get()) {
       addActionEvent("Stopping card Read Write Mode")
       // Stop NFC card detection
-      (cardReader as ObservableReader).stopCardDetection()
+      cardReader.stopCardDetection()
     }
     super.onPause()
   }
@@ -201,7 +199,7 @@ class MainActivity : AbstractExampleActivity(), PluginObserverSpi, DeviceScanner
   override fun onDestroy() {
     cardReader?.let {
       // stop propagating the reader events
-      (cardReader as ObservableReader).removeObserver(this)
+      cardReader.removeObserver(this)
     }
 
     // Unregister the AndroidPcsc plugin
@@ -251,92 +249,66 @@ class MainActivity : AbstractExampleActivity(), PluginObserverSpi, DeviceScanner
 
   override fun onReaderEvent(readerEvent: CardReaderEvent?) {
     addResultEvent("New ReaderEvent received : ${readerEvent?.type?.name}")
-    useCase?.onEventUpdate(readerEvent)
+
+    CoroutineScope(Dispatchers.Main).launch {
+      when (readerEvent?.type) {
+        CardReaderEvent.Type.CARD_MATCHED -> {
+          val selectionsResult =
+              cardSelectionManager.parseScheduledCardSelectionsResponse(
+                  readerEvent.scheduledCardSelectionsResponse)
+          val calypsoCard = selectionsResult.activeSmartCard as CalypsoCard
+          addResultEvent(
+              "Card ${ByteArrayUtil.toHex(calypsoCard.applicationSerialNumber)} detected with DFNAME: ${ByteArrayUtil.toHex(calypsoCard.dfName)}")
+          val efEnvironmentHolder =
+              calypsoCard.getFileBySfi(CalypsoClassicInfo.SFI_EnvironmentAndHolder)
+          addResultEvent(
+              "Environment and Holder file:\n${
+              ByteArrayUtil.toHex(
+                efEnvironmentHolder.data.content
+              )
+            }")
+          GlobalScope.launch(Dispatchers.IO) {
+            try {
+              CalypsoTransaction.runCardReadTransaction(cardReader, calypsoCard, false)
+              val counter =
+                  calypsoCard
+                      .getFileBySfi(CalypsoClassicInfo.SFI_Counter1)
+                      .data
+                      .getContentAsCounterValue(CalypsoClassicInfo.RECORD_NUMBER_1.toInt())
+              val eventLog =
+                  ByteArrayUtil.toHex(
+                      calypsoCard.getFileBySfi(CalypsoClassicInfo.SFI_EventLog).data.content)
+              addResultEvent("Counter value: $counter")
+              addResultEvent("EventLog file:\n$eventLog")
+            } catch (e: KeyplePluginException) {
+              Timber.e(e)
+              addResultEvent("Exception: ${e.message}")
+            } catch (e: Exception) {
+              Timber.e(e)
+              addResultEvent("Exception: ${e.message}")
+            }
+          }
+          cardReader.finalizeCardProcessing()
+        }
+        CardReaderEvent.Type.CARD_INSERTED -> {
+          addResultEvent("Card detected but AID didn't match with ${CalypsoClassicInfo.AID}")
+          cardReader.finalizeCardProcessing()
+        }
+        CardReaderEvent.Type.CARD_REMOVED -> {
+          addResultEvent("Card removed")
+        }
+        else -> {
+          // Do nothing
+        }
+      }
+    }
   }
 
   private fun configureCalypsoTransaction(
       responseProcessor: (selectionsResponse: ScheduledCardSelectionsResponse) -> Unit
   ) {
     addActionEvent("Prepare Calypso card Selection with AID: ${CalypsoClassicInfo.AID}")
-    try {
-      /* Prepare a Calypso card selection */
-      cardSelectionManager = SmartCardServiceProvider.getService().createCardSelectionManager()
-
-      /* Calypso selection: configures a card selection with all the desired attributes to make the selection and read additional information afterwards */
-      calypsoCardExtensionProvider = CalypsoExtensionService.getInstance()
-
-      val smartCardService = SmartCardServiceProvider.getService()
-      smartCardService.checkCardExtension(calypsoCardExtensionProvider)
-
-      cardSelectionManager.prepareSelection(
-          calypsoCardExtensionProvider
-              .createCardSelection()
-              .filterByDfName(CalypsoClassicInfo.AID)
-              .prepareReadRecord(
-                  CalypsoClassicInfo.SFI_EnvironmentAndHolder,
-                  CalypsoClassicInfo.RECORD_NUMBER_1.toInt()))
-
-      cardSelectionManager.prepareSelection(
-          calypsoCardExtensionProvider
-              .createCardSelection()
-              .filterByDfName("315449432E494341")
-              .prepareReadRecord(
-                  CalypsoClassicInfo.SFI_EnvironmentAndHolder,
-                  CalypsoClassicInfo.RECORD_NUMBER_1.toInt()))
-
-      cardSelectionManager.prepareSelection(
-          calypsoCardExtensionProvider
-              .createCardSelection()
-              .filterByDfName("A0000004040125090101")
-              .prepareReadRecord(
-                  CalypsoClassicInfo.SFI_EnvironmentAndHolder,
-                  CalypsoClassicInfo.RECORD_NUMBER_1.toInt()))
-
-      /*
-       * Provide the SeReader with the selection operation to be processed when a card is
-       * inserted.
-       */
-      cardSelectionManager.scheduleCardSelectionScenario(
-          cardReader as ObservableReader,
-          ObservableCardReader.DetectionMode.REPEATING,
-          ObservableCardReader.NotificationMode.ALWAYS)
-
-      useCase =
-          object : UseCase {
-            override fun onEventUpdate(event: CardReaderEvent?) {
-              CoroutineScope(Dispatchers.Main).launch {
-                when (event?.type) {
-                  CardReaderEvent.Type.CARD_MATCHED -> {
-                    addResultEvent("Card detected with AID: ${CalypsoClassicInfo.AID}")
-                    responseProcessor(event.scheduledCardSelectionsResponse)
-                    (cardReader as ObservableReader).finalizeCardProcessing()
-                  }
-                  CardReaderEvent.Type.CARD_INSERTED -> {
-                    addResultEvent(
-                        "Card detected but AID didn't match with ${CalypsoClassicInfo.AID}")
-                    (cardReader as ObservableReader).finalizeCardProcessing()
-                  }
-                  CardReaderEvent.Type.CARD_REMOVED -> {
-                    addResultEvent("Card removed")
-                  }
-                  else -> {
-                    // Do nothing
-                  }
-                }
-              }
-              // eventRecyclerView.smoothScrollToPosition(events.size - 1)
-            }
-          }
-
-      // notify reader that se detection has been launched
-      addActionEvent("Waiting for card presentation")
-    } catch (e: KeyplePluginException) {
-      Timber.e(e)
-      addResultEvent("Exception: ${e.message}")
-    } catch (e: Exception) {
-      Timber.e(e)
-      addResultEvent("Exception: ${e.message}")
-    }
+    cardSelectionManager = CalypsoTransaction.initiateScheduledCardSelection(cardReader)
   }
 
   private fun runCardReadTransactionWithSam(selectionsResponse: ScheduledCardSelectionsResponse) {
@@ -624,16 +596,13 @@ class MainActivity : AbstractExampleActivity(), PluginObserverSpi, DeviceScanner
     addActionEvent("Reader '$readerName' connected.")
 
     // Get and configure the card reader
-    cardReader = androidPcscPlugin.getReader(readerName)
-    (cardReader as ObservableReader).setReaderObservationExceptionHandler {
-        pluginName,
-        readerName,
-        e ->
+    cardReader = androidPcscPlugin.getReader(readerName) as ObservableReader
+    cardReader.setReaderObservationExceptionHandler { pluginName, readerName, e ->
       Timber.e("An unexpected reader error occurred: $pluginName:$readerName : $e")
     }
 
     // Set the current activity as Observer of the card reader
-    (cardReader as ObservableReader).addObserver(this@MainActivity)
+    cardReader.addObserver(this@MainActivity)
 
     cardProtocol = AndroidPcscSupportContactlessProtocols.NFC_ALL
     // Activate protocols for the card reader
@@ -652,8 +621,7 @@ class MainActivity : AbstractExampleActivity(), PluginObserverSpi, DeviceScanner
     areReadersInitialized.set(true)
 
     // Start the NFC detection
-    (cardReader as ObservableReader).startCardDetection(
-        ObservableCardReader.DetectionMode.REPEATING)
+    cardReader.startCardDetection(ObservableCardReader.DetectionMode.REPEATING)
 
     configureCalypsoTransaction(::runCardReadTransactionWithoutSam)
   }
