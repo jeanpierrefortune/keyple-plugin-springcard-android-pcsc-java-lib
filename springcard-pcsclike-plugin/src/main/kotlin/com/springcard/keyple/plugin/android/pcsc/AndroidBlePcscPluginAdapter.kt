@@ -23,6 +23,7 @@ import com.springcard.pcsclike.communication.GattAttributesD600
 import com.springcard.pcsclike.communication.GattAttributesSpringCore
 import timber.log.Timber
 
+/** Provides the means to manage BLE devices. */
 internal class AndroidBlePcscPluginAdapter(context: Context) :
     AbstractAndroidPcscPluginAdapter(context) {
   private var bluetoothDeviceList: MutableMap<String, BluetoothDevice> = mutableMapOf()
@@ -104,10 +105,13 @@ internal class AndroidBlePcscPluginAdapter(context: Context) :
               if (result.scanRecord!!.deviceName != null) {
                 DeviceInfo(
                     result.device.address,
-                    result.scanRecord!!.deviceName!! + ' ' + result.rssi.toString())
+                    "${result.scanRecord!!.deviceName!!} ${result.rssi}",
+                    result.device.name)
               } else {
                 DeviceInfo(
-                    result.device.address, result.device.address + ' ' + result.rssi.toString())
+                    result.device.address,
+                    "${result.device.address} ${result.rssi}",
+                    result.device.name)
               }
           if (callbackType == ScanSettings.CALLBACK_TYPE_ALL_MATCHES) {
             if (!bluetoothDeviceInfoMap.containsKey(bleDeviceInfo.identifier)) {

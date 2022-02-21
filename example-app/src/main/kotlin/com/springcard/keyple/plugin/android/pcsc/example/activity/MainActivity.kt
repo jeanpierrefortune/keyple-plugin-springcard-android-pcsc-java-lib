@@ -664,7 +664,7 @@ class MainActivity : AbstractExampleActivity(), PluginObserverSpi, DeviceScanner
     }
     addActionEvent("Device discovery is finished.\n${deviceInfoList.size} device(s) discovered.")
     for (deviceInfo in deviceInfoList) {
-      addActionEvent("Device: " + deviceInfo.extraInfo)
+      addActionEvent("Device: " + deviceInfo.textInfo)
     }
     // connect to first discovered device (we should ask the user)
     if (deviceInfoList.isNotEmpty()) {

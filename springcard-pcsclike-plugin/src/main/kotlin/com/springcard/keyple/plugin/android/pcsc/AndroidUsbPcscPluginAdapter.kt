@@ -22,6 +22,7 @@ import com.springcard.pcsclike.SCardReaderList
 import org.xmlpull.v1.XmlPullParser
 import timber.log.Timber
 
+/** Provides the means to manage USB devices. */
 internal class AndroidUsbPcscPluginAdapter(context: Context) :
     AbstractAndroidPcscPluginAdapter(context) {
   private lateinit var usbAttachReceiver: BroadcastReceiver
@@ -37,6 +38,7 @@ internal class AndroidUsbPcscPluginAdapter(context: Context) :
   private val usbManager: UsbManager by lazy {
     context.getSystemService(Context.USB_SERVICE) as UsbManager
   }
+
   private val permissionIntent: PendingIntent by lazy {
     PendingIntent.getBroadcast(context, 0, Intent(ACTION_USB_PERMISSION), 0)
   }
@@ -137,7 +139,8 @@ internal class AndroidUsbPcscPluginAdapter(context: Context) :
       val usbDeviceInfo =
           DeviceInfo(
               usbDevice.deviceId.toString(),
-              usbDevice.manufacturerName + ' ' + usbDevice.productName)
+              "${usbDevice.manufacturerName} ${usbDevice.productName}",
+              "NAME:${usbDevice.deviceName}, VID:${intTo4hex(usbDevice.vendorId)}, PID:${intTo4hex(usbDevice.productId)}")
       if (!usbDeviceInfoMap.containsKey(usbDeviceInfo.identifier)) {
         Timber.d("BLE device added: $usbDeviceInfo")
         usbDeviceInfoMap[usbDeviceInfo.identifier] = usbDeviceInfo

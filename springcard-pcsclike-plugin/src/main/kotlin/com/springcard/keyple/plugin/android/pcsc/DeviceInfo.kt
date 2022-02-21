@@ -5,4 +5,4 @@
  */
 package com.springcard.keyple.plugin.android.pcsc
 
-data class DeviceInfo(val identifier: String, val extraInfo: String)
+data class DeviceInfo(val identifier: String, val textInfo: String, val extraInfo: String)

@@ -16,7 +16,7 @@ import org.eclipse.keyple.core.plugin.spi.ObservablePluginSpi
 import org.eclipse.keyple.core.plugin.spi.reader.ReaderSpi
 import timber.log.Timber
 
-/** Handle native Readers mapped for Keyple */
+/** Class providing the common features of both USB and BLE links */
 internal abstract class AbstractAndroidPcscPluginAdapter(var context: Context) :
     AndroidPcscPlugin, ObservablePluginSpi {
   companion object {
