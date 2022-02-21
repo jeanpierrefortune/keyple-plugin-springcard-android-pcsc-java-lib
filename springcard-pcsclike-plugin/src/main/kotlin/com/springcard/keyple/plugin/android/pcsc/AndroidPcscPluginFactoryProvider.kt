@@ -8,7 +8,10 @@ package com.springcard.keyple.plugin.android.pcsc
 import android.content.Context
 
 object AndroidPcscPluginFactoryProvider {
-  fun getFactory(context: Context): AndroidPcscPluginFactory {
-    return AndroidPcscPluginFactoryAdapter(context)
+  fun getFactory(
+      type: AndroidPcscPluginFactory.Type.Link,
+      context: Context
+  ): AndroidPcscPluginFactory {
+    return AndroidPcscPluginFactoryAdapter(type, context)
   }
 }

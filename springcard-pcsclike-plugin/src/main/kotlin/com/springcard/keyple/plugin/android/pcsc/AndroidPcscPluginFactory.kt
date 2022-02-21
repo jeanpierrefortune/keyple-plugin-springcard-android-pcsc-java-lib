@@ -7,4 +7,11 @@ package com.springcard.keyple.plugin.android.pcsc
 
 import org.eclipse.keyple.core.common.KeyplePluginExtensionFactory
 
-interface AndroidPcscPluginFactory : KeyplePluginExtensionFactory
+interface AndroidPcscPluginFactory : KeyplePluginExtensionFactory {
+  companion object Type {
+    enum class Link {
+      USB,
+      BLE
+    }
+  }
+}

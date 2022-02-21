@@ -11,25 +11,17 @@ import org.eclipse.keyple.core.plugin.PluginApiProperties
 import org.eclipse.keyple.core.plugin.spi.PluginFactorySpi
 import org.eclipse.keyple.core.plugin.spi.PluginSpi
 
-internal class AndroidPcscPluginFactoryAdapter internal constructor(var context: Context) :
+internal class AndroidPcscPluginFactoryAdapter
+internal constructor(val type: AndroidPcscPluginFactory.Type.Link, val context: Context) :
     AndroidPcscPluginFactory, PluginFactorySpi {
-
-  //    @Throws(ReaderIOException::class)
-  //    suspend fun init(activity: Activity): AndroidPcscPluginFactoryAdapter {
-  //        // TODO init reader:
-  //        /* val started = AndroidPcscReader.init(activity)
-  //        return if (started == true) {
-  //            this
-  //        } else {
-  //            throw ReaderIOException("Could not init Bluebird Adapter")
-  //        }
-  //        */
-  //        return this
-  //    }
 
   override fun getPluginName(): String = AndroidPcscPlugin.PLUGIN_NAME
 
-  override fun getPlugin(): PluginSpi = AndroidPcscPluginAdapter(context)
+  override fun getPlugin(): PluginSpi =
+      when (type) {
+        AndroidPcscPluginFactory.Type.Link.BLE -> AndroidBlePcscPluginAdapter(context)
+        AndroidPcscPluginFactory.Type.Link.USB -> AndroidUsbPcscPluginAdapter(context)
+      }
 
   override fun getCommonApiVersion(): String = CommonApiProperties.VERSION
 

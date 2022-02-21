@@ -14,6 +14,7 @@ import androidx.appcompat.widget.Toolbar
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.google.android.material.navigation.NavigationView
+import com.springcard.keyple.plugin.android.pcsc.AndroidPcscPluginFactory
 import com.springcard.keyple.plugin.android.pcsc.AndroidPcscReader
 import com.springcard.keyple.plugin.android.pcsc.example.R
 import com.springcard.keyple.plugin.android.pcsc.example.adapter.EventAdapter
@@ -52,7 +53,7 @@ abstract class AbstractExampleActivity :
   protected var cardReader: Reader? = null
   protected lateinit var samReader: Reader
 
-  /** Use to modify event update behaviour reguarding current use case execution */
+  /** Use to modify event update behaviour regarding current use case execution */
   interface UseCase {
     fun onEventUpdate(event: CardReaderEvent?)
   }
@@ -142,7 +143,7 @@ abstract class AbstractExampleActivity :
   }
 
   abstract fun initContentView()
-  abstract fun initReaders()
+  abstract fun initReaders(link: AndroidPcscPluginFactory.Type.Link)
 
   protected fun getSecuritySettings(): CardSecuritySetting? {
 

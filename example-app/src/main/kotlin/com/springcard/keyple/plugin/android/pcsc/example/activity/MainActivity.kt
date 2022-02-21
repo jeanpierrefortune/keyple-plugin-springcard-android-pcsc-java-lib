@@ -6,6 +6,7 @@
 package com.springcard.keyple.plugin.android.pcsc.example.activity
 
 import android.Manifest
+import android.app.AlertDialog
 import android.app.ProgressDialog
 import android.bluetooth.BluetoothAdapter
 import android.bluetooth.BluetoothManager
@@ -14,16 +15,18 @@ import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.Build
 import android.view.MenuItem
+import android.widget.Toast
 import androidx.core.view.GravityCompat
 import com.springcard.keyple.plugin.android.pcsc.AndroidPcscPlugin
+import com.springcard.keyple.plugin.android.pcsc.AndroidPcscPluginFactory
 import com.springcard.keyple.plugin.android.pcsc.AndroidPcscPluginFactoryProvider
 import com.springcard.keyple.plugin.android.pcsc.AndroidPcscSupportContactlessProtocols
-import com.springcard.keyple.plugin.android.pcsc.BleDeviceInfo
+import com.springcard.keyple.plugin.android.pcsc.DeviceInfo
 import com.springcard.keyple.plugin.android.pcsc.example.R
 import com.springcard.keyple.plugin.android.pcsc.example.dialog.PermissionDeniedDialog
 import com.springcard.keyple.plugin.android.pcsc.example.util.CalypsoClassicInfo
 import com.springcard.keyple.plugin.android.pcsc.example.util.PermissionHelper
-import com.springcard.keyple.plugin.android.pcsc.spi.BleDeviceScannerSpi
+import com.springcard.keyple.plugin.android.pcsc.spi.DeviceScannerSpi
 import java.util.concurrent.atomic.AtomicBoolean
 import kotlinx.android.synthetic.main.activity_main.*
 import kotlinx.coroutines.CoroutineScope
@@ -52,7 +55,7 @@ import org.eclipse.keyple.core.util.ByteArrayUtil
 import timber.log.Timber
 
 /** Activity launched on app start up that display the only screen available on this example app. */
-class MainActivity : AbstractExampleActivity(), PluginObserverSpi, BleDeviceScannerSpi {
+class MainActivity : AbstractExampleActivity(), PluginObserverSpi, DeviceScannerSpi {
   private lateinit var androidPcscPlugin: Plugin
   private lateinit var cardSelectionManager: CardSelectionManager
   private lateinit var cardProtocol: AndroidPcscSupportContactlessProtocols
@@ -66,7 +69,7 @@ class MainActivity : AbstractExampleActivity(), PluginObserverSpi, BleDeviceScan
     bluetoothManager.adapter
   }
 
-  private val android.bluetooth.BluetoothAdapter.isDisabled: Boolean
+  private val BluetoothAdapter.isDisabled: Boolean
     get() = !isEnabled
 
   private enum class TransactionType {
@@ -89,10 +92,25 @@ class MainActivity : AbstractExampleActivity(), PluginObserverSpi, BleDeviceScan
 
     // Check whether readers are already initialized (return from background) or not (first launch)
     if (!areReadersInitialized.get()) {
-      addActionEvent("Enabling NFC Reader mode")
-      addResultEvent("Please choose a use case")
-      progress.show()
-      initReaders()
+      val builder = AlertDialog.Builder(this)
+      builder.setTitle("Interface selection")
+      builder.setMessage("Please choose the type of interface")
+      //      builder.setPositiveButton("OK", DialogInterface.OnClickListener(function = x))
+
+      builder.setPositiveButton("USB") { dialog, which ->
+        Toast.makeText(applicationContext, "USB", Toast.LENGTH_SHORT).show()
+        progress.show()
+        addActionEvent("Enabling USB Reader mode")
+        initReaders(AndroidPcscPluginFactory.Type.Link.USB)
+      }
+
+      builder.setNegativeButton("BLE") { dialog, which ->
+        Toast.makeText(applicationContext, "BLE", Toast.LENGTH_SHORT).show()
+        progress.show()
+        addActionEvent("Enabling BLE Reader mode")
+        initReaders(AndroidPcscPluginFactory.Type.Link.BLE)
+      }
+      builder.show()
     } else {
       addActionEvent("Start card Read Write Mode")
       (cardReader as ObservableReader).startCardDetection(
@@ -101,15 +119,16 @@ class MainActivity : AbstractExampleActivity(), PluginObserverSpi, BleDeviceScan
   }
 
   /** Initializes the card reader (Contact Reader) and SAM reader (Contactless Reader) */
-  override fun initReaders() {
+  override fun initReaders(link: AndroidPcscPluginFactory.Type.Link) {
     Timber.d("initReaders")
     // Connexion to AndroidPcsc lib take time, we've added a callback to this factory.
     GlobalScope.launch {
       val pluginFactory: KeyplePluginExtensionFactory?
       try {
+        Timber.d("Create plugin factory for link ${link.name}")
         pluginFactory =
             withContext(Dispatchers.IO) {
-              AndroidPcscPluginFactoryProvider.getFactory(applicationContext)
+              AndroidPcscPluginFactoryProvider.getFactory(link, applicationContext)
             }
       } catch (e: Exception) {
         withContext(Dispatchers.Main) { showAlertDialog(e, finish = true, cancelable = false) }
@@ -148,17 +167,14 @@ class MainActivity : AbstractExampleActivity(), PluginObserverSpi, BleDeviceScan
         startActivityForResult(enableBtIntent, REQUEST_ENABLE_BT)
       }
 
-      addActionEvent("Scanning compliant BLE devices...")
-      bluetoothAdapter?.let {
-        androidPcscPlugin
-            .getExtension(AndroidPcscPlugin::class.java)
-            .scanBleReaders(
-                it,
-                10,
-                true,
-                this@MainActivity,
-            )
-      }
+      addActionEvent("Scanning compliant ${link.name} devices...")
+      androidPcscPlugin
+          .getExtension(AndroidPcscPlugin::class.java)
+          .scanDevices(
+              2,
+              true,
+              this@MainActivity,
+          )
 
       (androidPcscPlugin as ObservablePlugin).setPluginObservationExceptionHandler { pluginName, e
         ->
@@ -252,21 +268,29 @@ class MainActivity : AbstractExampleActivity(), PluginObserverSpi, BleDeviceScan
       val smartCardService = SmartCardServiceProvider.getService()
       smartCardService.checkCardExtension(calypsoCardExtensionProvider)
 
-      val cardSelectionRequest = calypsoCardExtensionProvider.createCardSelection()
-      cardSelectionRequest
-          .filterByDfName(CalypsoClassicInfo.AID)
-          .filterByCardProtocol(cardProtocol.key)
+      cardSelectionManager.prepareSelection(
+          calypsoCardExtensionProvider
+              .createCardSelection()
+              .filterByDfName(CalypsoClassicInfo.AID)
+              .prepareReadRecord(
+                  CalypsoClassicInfo.SFI_EnvironmentAndHolder,
+                  CalypsoClassicInfo.RECORD_NUMBER_1.toInt()))
 
-      /* Prepare the reading order and keep the associated parser for later use once the
-      selection has been made. */
-      cardSelectionRequest.prepareReadRecordFile(
-          CalypsoClassicInfo.SFI_EnvironmentAndHolder, CalypsoClassicInfo.RECORD_NUMBER_1.toInt())
+      cardSelectionManager.prepareSelection(
+          calypsoCardExtensionProvider
+              .createCardSelection()
+              .filterByDfName("315449432E494341")
+              .prepareReadRecord(
+                  CalypsoClassicInfo.SFI_EnvironmentAndHolder,
+                  CalypsoClassicInfo.RECORD_NUMBER_1.toInt()))
 
-      /*
-       * Add the selection case to the current selection (we could have added other cases
-       * here)
-       */
-      cardSelectionManager.prepareSelection(cardSelectionRequest)
+      cardSelectionManager.prepareSelection(
+          calypsoCardExtensionProvider
+              .createCardSelection()
+              .filterByDfName("A0000004040125090101")
+              .prepareReadRecord(
+                  CalypsoClassicInfo.SFI_EnvironmentAndHolder,
+                  CalypsoClassicInfo.RECORD_NUMBER_1.toInt()))
 
       /*
        * Provide the SeReader with the selection operation to be processed when a card is
@@ -584,6 +608,7 @@ class MainActivity : AbstractExampleActivity(), PluginObserverSpi, BleDeviceScan
       for (readerName in pluginEvent.readerNames) {
         logMessage += ", reader=$readerName"
       }
+      Timber.d(logMessage)
       if (pluginEvent.type == PluginEvent.Type.READER_CONNECTED) {
         onReaderConnected(pluginEvent.readerNames.first())
       }
@@ -594,7 +619,7 @@ class MainActivity : AbstractExampleActivity(), PluginObserverSpi, BleDeviceScan
     }
   }
 
-  fun onReaderConnected(readerName: String) {
+  private fun onReaderConnected(readerName: String) {
 
     addActionEvent("Reader '$readerName' connected.")
 
@@ -633,19 +658,20 @@ class MainActivity : AbstractExampleActivity(), PluginObserverSpi, BleDeviceScan
     configureCalypsoTransaction(::runCardReadTransactionWithoutSam)
   }
 
-  override fun onDeviceDiscovered(bluetoothDeviceInfoList: MutableCollection<BleDeviceInfo>) {
-    for (bleDeviceInfo in bluetoothDeviceInfoList) {
+  override fun onDeviceDiscovered(deviceInfoList: MutableCollection<DeviceInfo>) {
+    for (bleDeviceInfo in deviceInfoList) {
       Timber.i("Discovered devices: $bleDeviceInfo")
     }
-    addActionEvent(
-        "BLE device discovery is finished.\n${bluetoothDeviceInfoList.size} device(s) discovered.")
+    addActionEvent("Device discovery is finished.\n${deviceInfoList.size} device(s) discovered.")
+    for (deviceInfo in deviceInfoList) {
+      addActionEvent("Device: " + deviceInfo.extraInfo)
+    }
     // connect to first discovered device (we should ask the user)
-    if (bluetoothDeviceInfoList.isNotEmpty()) {
-      val bleDevice = bluetoothDeviceInfoList.first()
-      addActionEvent("Connecting to '${bleDevice.name}'")
+    if (deviceInfoList.isNotEmpty()) {
+      val device = deviceInfoList.first()
       androidPcscPlugin
           .getExtension(AndroidPcscPlugin::class.java)
-          .connectToBleDevice(bleDevice.address)
+          .connectToDevice(device.identifier)
     }
   }
 }

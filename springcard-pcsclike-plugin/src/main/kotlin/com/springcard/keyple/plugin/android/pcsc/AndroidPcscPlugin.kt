@@ -5,26 +5,20 @@
  */
 package com.springcard.keyple.plugin.android.pcsc
 
-import android.bluetooth.BluetoothAdapter
-import com.springcard.keyple.plugin.android.pcsc.spi.BleDeviceScannerSpi
+import com.springcard.keyple.plugin.android.pcsc.spi.DeviceScannerSpi
 import org.eclipse.keyple.core.common.KeyplePluginExtension
 
 interface AndroidPcscPlugin : KeyplePluginExtension {
 
   companion object {
     const val PLUGIN_NAME = "AndroidPcscPlugin"
-    enum class Link {
-      USB,
-      BLE
-    }
   }
 
-  fun scanBleReaders(
-      bluetoothAdapter: BluetoothAdapter,
+  fun scanDevices(
       timeout: Long,
       stopOnFirstDeviceDiscovered: Boolean,
-      bleDeviceScannerSpi: BleDeviceScannerSpi
+      deviceScannerSpi: DeviceScannerSpi
   )
 
-  fun connectToBleDevice(address: String)
+  fun connectToDevice(identifier: String)
 }

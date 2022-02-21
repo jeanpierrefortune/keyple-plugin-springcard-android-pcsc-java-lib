@@ -5,8 +5,8 @@
  */
 package com.springcard.keyple.plugin.android.pcsc.spi
 
-import com.springcard.keyple.plugin.android.pcsc.BleDeviceInfo
+import com.springcard.keyple.plugin.android.pcsc.DeviceInfo
 
-interface BleDeviceScannerSpi {
-  fun onDeviceDiscovered(bluetoothDeviceInfoList: MutableCollection<BleDeviceInfo>)
+interface DeviceScannerSpi {
+  fun onDeviceDiscovered(bluetoothDeviceInfoList: MutableCollection<DeviceInfo>)
 }

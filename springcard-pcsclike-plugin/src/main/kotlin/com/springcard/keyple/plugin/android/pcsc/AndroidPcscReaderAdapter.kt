@@ -21,7 +21,7 @@ import timber.log.Timber
 
 /** Keyple SE Reader's Implementation for the Bluebird (SAM access) reader */
 @Suppress("INVISIBLE_ABSTRACT_MEMBER_FROM_SUPER_WARNING")
-class AndroidPcscReaderAdapter(val sCardReader: SCardReader) :
+internal class AndroidPcscReaderAdapter(val sCardReader: SCardReader) :
     AndroidPcscReader,
     ConfigurableReaderSpi,
     ObservableReaderSpi,
