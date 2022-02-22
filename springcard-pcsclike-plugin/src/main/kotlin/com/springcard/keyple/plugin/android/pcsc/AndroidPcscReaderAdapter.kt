@@ -63,6 +63,7 @@ internal class AndroidPcscReaderAdapter(val sCardReader: SCardReader) :
   }
 
   override fun checkCardPresence(): Boolean {
+    isCardPresent = sCardReader.cardPresent
     Timber.v("Card present: $isCardPresent")
     return isCardPresent
   }

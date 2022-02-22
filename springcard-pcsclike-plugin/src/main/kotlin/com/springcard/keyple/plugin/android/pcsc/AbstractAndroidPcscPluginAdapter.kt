@@ -72,18 +72,18 @@ internal abstract class AbstractAndroidPcscPluginAdapter(var context: Context) :
       object : SCardReaderListCallback() {
         override fun onReaderListCreated(readerList: SCardReaderList) {
           for (i in 0 until readerList.slotCount) {
-            Timber.e("Add reader: ${readerList.slots[i]}")
+            Timber.v("Add reader: ${readerList.slots[i]}")
             readerList.getReader(i)?.let { sCardReaders.put(it.name, it) }
           }
         }
 
         override fun onReaderListClosed(readerList: SCardReaderList?) {
-          Timber.e("onReaderListClosed")
+          Timber.v("onReaderListClosed")
           sCardReaders.clear()
         }
 
         override fun onControlResponse(readerList: SCardReaderList, response: ByteArray) {
-          Timber.e("onControlResponse")
+          Timber.v("onControlResponse")
         }
 
         override fun onReaderStatus(
@@ -91,35 +91,35 @@ internal abstract class AbstractAndroidPcscPluginAdapter(var context: Context) :
             cardPresent: Boolean,
             cardConnected: Boolean
         ) {
-          Timber.e(
+          Timber.v(
               "onReaderStatus: reader=${slot.name}, cardPresent=$cardPresent, cardConnected=$cardConnected")
           readerSpis[slot.name]?.onCardPresenceChange(cardPresent)
         }
 
         override fun onCardConnected(channel: SCardChannel) {
-          Timber.e("onCardConnected: reader=${channel.parent.name}")
+          Timber.v("onCardConnected: reader=${channel.parent.name}")
           readerSpis[channel.parent.name]?.onCardConnected()
         }
 
         override fun onCardDisconnected(channel: SCardChannel) {
-          Timber.e("onCardDisconnected")
+          Timber.v("onCardDisconnected")
         }
 
         override fun onTransmitResponse(channel: SCardChannel, response: ByteArray) {
-          Timber.e("onTransmitResponse")
+          Timber.v("onTransmitResponse")
           readerSpis[channel.parent.name]?.onCardResponseReceived(response)
         }
 
         override fun onReaderListError(readerList: SCardReaderList?, error: SCardError) {
-          Timber.e("onReaderListError")
+          Timber.v("onReaderListError")
         }
 
         override fun onReaderOrCardError(readerOrCard: Any, error: SCardError) {
-          Timber.e("onReaderOrCardError")
+          Timber.v("onReaderOrCardError")
         }
 
         override fun onReaderListState(readerList: SCardReaderList, isInLowPowerMode: Boolean) {
-          Timber.e("onReaderListState")
+          Timber.v("onReaderListState")
         }
       }
 }

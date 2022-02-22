@@ -36,6 +36,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.calypsonet.terminal.calypso.WriteAccessLevel
 import org.calypsonet.terminal.calypso.card.CalypsoCard
+import org.calypsonet.terminal.calypso.transaction.CardSecuritySetting
 import org.calypsonet.terminal.reader.CardReaderEvent
 import org.calypsonet.terminal.reader.ObservableCardReader
 import org.calypsonet.terminal.reader.selection.CardSelectionManager
@@ -58,6 +59,7 @@ class MainActivity : AbstractExampleActivity(), PluginObserverSpi, DeviceScanner
   private lateinit var androidPcscPlugin: Plugin
   private lateinit var cardSelectionManager: CardSelectionManager
   private lateinit var cardProtocol: AndroidPcscSupportContactlessProtocols
+  private var cardSecuritySettings: CardSecuritySetting? = null
 
   private val areReadersInitialized = AtomicBoolean(false)
 
@@ -135,6 +137,9 @@ class MainActivity : AbstractExampleActivity(), PluginObserverSpi, DeviceScanner
 
       // Get the instance of the SmartCardService (Singleton pattern)
       val smartCardService = SmartCardServiceProvider.getService()
+
+      // check the card extension, any version inconsistencies will be logged
+      smartCardService.checkCardExtension(calypsoCardExtensionProvider)
 
       // Register the AndroidPcsc with SmartCardService, get the corresponding generic Plugin in
       // return
@@ -269,7 +274,7 @@ class MainActivity : AbstractExampleActivity(), PluginObserverSpi, DeviceScanner
             }")
           GlobalScope.launch(Dispatchers.IO) {
             try {
-              CalypsoTransaction.runCardReadTransaction(cardReader, calypsoCard, false)
+              CalypsoTransaction.runCardTransaction(cardReader, calypsoCard, cardSecuritySettings)
               val counter =
                   calypsoCard
                       .getFileBySfi(CalypsoClassicInfo.SFI_Counter1)
@@ -582,7 +587,13 @@ class MainActivity : AbstractExampleActivity(), PluginObserverSpi, DeviceScanner
       }
       Timber.d(logMessage)
       if (pluginEvent.type == PluginEvent.Type.READER_CONNECTED) {
-        onReaderConnected(pluginEvent.readerNames.first())
+        for (readerName in pluginEvent.readerNames) {
+          if (readerName.toUpperCase().contains("CONTACTLESS")) {
+            onCardReaderConnected(readerName)
+          } else if (readerName.toUpperCase().contains("SAM")) {
+            onSamReaderConnected(readerName)
+          }
+        }
       }
       if (pluginEvent.type == PluginEvent.Type.READER_DISCONNECTED) {
         addActionEvent("Reader '${pluginEvent.readerNames.first()}' connected.")
@@ -591,9 +602,9 @@ class MainActivity : AbstractExampleActivity(), PluginObserverSpi, DeviceScanner
     }
   }
 
-  private fun onReaderConnected(readerName: String) {
+  private fun onCardReaderConnected(readerName: String) {
 
-    addActionEvent("Reader '$readerName' connected.")
+    addActionEvent("Card reader '$readerName' connected.")
 
     // Get and configure the card reader
     cardReader = androidPcscPlugin.getReader(readerName) as ObservableReader
@@ -608,22 +619,20 @@ class MainActivity : AbstractExampleActivity(), PluginObserverSpi, DeviceScanner
     // Activate protocols for the card reader
     (cardReader as ConfigurableReader).activateProtocol(cardProtocol.key, cardProtocol.key)
 
-    // Get and configure the SAM reader
-    //          samReader = androidPcscPlugin.getReader(AndroidPcscReader.READER_NAME)
-
-    /*            PermissionHelper.checkPermission(
-        this@MainActivity, arrayOf(
-            Manifest.permission.READ_EXTERNAL_STORAGE,
-            AndroidPcscPlugin.PCSCLIKE_SAM_PERMISSION
-        )
-    )*/
-
     areReadersInitialized.set(true)
 
     // Start the NFC detection
     cardReader.startCardDetection(ObservableCardReader.DetectionMode.REPEATING)
 
     configureCalypsoTransaction(::runCardReadTransactionWithoutSam)
+  }
+
+  private fun onSamReaderConnected(readerName: String) {
+    addActionEvent("SAM reader '$readerName' connected.")
+
+    CalypsoTransaction.setupCardResourceService(androidPcscPlugin, readerName, CalypsoClassicInfo.SAM_PROFILE_NAME)
+
+    cardSecuritySettings = CalypsoTransaction.getSecuritySettings()
   }
 
   override fun onDeviceDiscovered(deviceInfoList: MutableCollection<DeviceInfo>) {

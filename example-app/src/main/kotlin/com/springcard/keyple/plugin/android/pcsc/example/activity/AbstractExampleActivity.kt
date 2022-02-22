@@ -66,7 +66,7 @@ abstract class AbstractExampleActivity :
 
   protected var useCase: UseCase? = null
 
-  val calypsoCardExtensionProvider = CalypsoExtensionService.getInstance()
+  val calypsoCardExtensionProvider: CalypsoExtensionService = CalypsoExtensionService.getInstance()
 
   override fun onCreate(savedInstanceState: Bundle?) {
     super.onCreate(savedInstanceState)
