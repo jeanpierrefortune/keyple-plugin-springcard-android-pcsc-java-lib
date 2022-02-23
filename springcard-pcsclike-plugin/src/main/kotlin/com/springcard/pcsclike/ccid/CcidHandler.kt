@@ -247,17 +247,17 @@ internal class CcidHandler(private val scardReaderList: SCardReaderList) {
 
     when (cardStatus) {
       0b00 -> {
-        Log.i(TAG, "A Card is present and active (powered ON)")
+        Log.d(TAG, "A Card is present and active (powered ON)")
         slot.cardPresent = true
         slot.cardPowered = true
       }
       0b01 -> {
-        Log.i(TAG, "A Card is present and inactive (powered OFF or hardware error)")
+        Log.d(TAG, "A Card is present and inactive (powered OFF or hardware error)")
         slot.cardPresent = true
         slot.cardPowered = false
       }
       0b10 -> {
-        Log.i(TAG, "No card present (slot is empty)")
+        Log.d(TAG, "No card present (slot is empty)")
         slot.cardPresent = false
         slot.cardPowered = false
       }
@@ -288,7 +288,7 @@ internal class CcidHandler(private val scardReaderList: SCardReaderList) {
 
     when (commandStatus) {
       0b00 -> {
-        Log.i(TAG, "Command processed without error")
+        Log.d(TAG, "Command processed without error")
         return SCardError(SCardError.ErrorCodes.NO_ERROR)
       }
       0b01 -> {

@@ -34,4 +34,11 @@ interface AndroidPcscPlugin : KeyplePluginExtension {
    * @param identifier The identifier of the device to connect to.
    */
   fun connectToDevice(identifier: String)
+
+  /**
+   * Transmits a control command.
+   * @param dataIn The input data of the command.
+   * @return The output data of the command.
+   */
+  fun transmitControl(dataIn: ByteArray?): ByteArray
 }

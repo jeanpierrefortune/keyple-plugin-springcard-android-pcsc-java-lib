@@ -1,3 +1,4 @@
+import java.util.Properties
 ///////////////////////////////////////////////////////////////////////////////
 //  GRADLE CONFIGURATION
 ///////////////////////////////////////////////////////////////////////////////
@@ -17,24 +18,48 @@ android {
     compileSdkVersion(29)
     buildToolsVersion("30.0.2")
 
+    signingConfigs {
+        create("default") {
+            val properties = Properties().apply {
+                load(File("signing.properties").reader())
+            }
+            storeFile = File(properties.getProperty("storeFilePath"))
+            storePassword = properties.getProperty("storePassword")
+            keyPassword = properties.getProperty("keyPassword")
+            keyAlias = properties.getProperty("keyAlias")
+        }
+    }
+
     defaultConfig {
         applicationId("com.springcard.keyple.plugin.android.pcsc.example")
         minSdkVersion(21)
         targetSdkVersion(29)
         versionName(project.version.toString())
-
+        versionCode(3)
         testInstrumentationRunner("android.support.test.runner.AndroidJUnitRunner")
         multiDexEnabled = true
     }
 
     buildTypes {
-        getByName("release") {
+        getByName("debug") {
             minifyEnabled(false)
             isTestCoverageEnabled = true
+            isDebuggable = true
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
             )
+            signingConfig = signingConfigs.getByName("default")
+        }
+        getByName("release") {
+            minifyEnabled(true)
+            isTestCoverageEnabled = false
+            isDebuggable = false
+            proguardFiles(
+                getDefaultProguardFile("proguard-android-optimize.txt"),
+                "proguard-rules.pro"
+            )
+            signingConfig = signingConfigs.getByName("default")
         }
     }
 
@@ -90,8 +115,7 @@ dependencies {
     */
     implementation("org.slf4j:slf4j-api:1.7.32")
     implementation("com.jakewharton.timber:timber:4.7.1")
-    implementation("com.arcao:slf4j-timber:3.1@aar") //SLF4J binding for Timber
-
+    implementation("at.favre.lib:slf4j-timber:1.0.1") //SLF4J binding for Timber
     /*
     Kotlin
     */

@@ -29,10 +29,8 @@ internal class AndroidUsbPcscPluginAdapter(context: Context) :
   private var usbDeviceList: MutableMap<String, UsbDevice> = mutableMapOf()
   private var usbDeviceInfoMap: MutableMap<String, DeviceInfo> = mutableMapOf()
   private lateinit var deviceScannerSpi: DeviceScannerSpi
-  /* List containing all VID/PID of authorized devices */
   private val deviceFilter = mutableListOf<String>()
   private var handler: Handler = Handler(Looper.getMainLooper())
-
   private val ACTION_USB_PERMISSION = "com.android.example.USB_PERMISSION"
 
   private val usbManager: UsbManager by lazy {
@@ -61,12 +59,13 @@ internal class AndroidUsbPcscPluginAdapter(context: Context) :
       }
       eventType = xmlResourceParser.next()
     }
-    /* Scan USB devices already present */
+    /* Scan already present USB devices */
     val usbManager = context.getSystemService(Context.USB_SERVICE) as UsbManager
     val deviceList: HashMap<String, UsbDevice> = usbManager.deviceList
     deviceList.values.forEach { device -> addDevice(device) }
   }
 
+  /** Specific scanning for USB devices. */
   override fun scanDevices(
       timeout: Long,
       stopOnFirstDeviceDiscovered: Boolean,
@@ -98,10 +97,10 @@ internal class AndroidUsbPcscPluginAdapter(context: Context) :
               ACTION_USB_PERMISSION == intent.action -> {
                 synchronized(this) {
                   if (intent.getBooleanExtra(UsbManager.EXTRA_PERMISSION_GRANTED, false)) {
-                    Timber.d("Permission granted for device $usbDevice")
+                    Timber.d("Permission granted for device %s", usbDevice)
                     SCardReaderList.create(context, usbDevice, scardCallbacks)
                   } else {
-                    Timber.d("Permission denied for device $usbDevice")
+                    Timber.d("Permission denied for device %s", usbDevice)
                   }
                 }
               }
@@ -114,7 +113,7 @@ internal class AndroidUsbPcscPluginAdapter(context: Context) :
   }
 
   override fun connectToDevice(identifier: String) {
-    Timber.d("Connection to USB device: ${identifier}.")
+    Timber.d("Connection to USB device: %s", identifier)
     val usbDevice = usbDeviceList[identifier]
     if (usbDevice != null) {
       if (!usbManager.hasPermission(usbDevice)) {
@@ -142,7 +141,7 @@ internal class AndroidUsbPcscPluginAdapter(context: Context) :
               "${usbDevice.manufacturerName} ${usbDevice.productName}",
               "NAME:${usbDevice.deviceName}, VID:${intTo4hex(usbDevice.vendorId)}, PID:${intTo4hex(usbDevice.productId)}")
       if (!usbDeviceInfoMap.containsKey(usbDeviceInfo.identifier)) {
-        Timber.d("BLE device added: $usbDeviceInfo")
+        Timber.d("BLE device added: %s", usbDeviceInfo)
         usbDeviceInfoMap[usbDeviceInfo.identifier] = usbDeviceInfo
         usbDeviceList[usbDeviceInfo.identifier] = usbDevice
         return true
@@ -162,7 +161,7 @@ internal class AndroidUsbPcscPluginAdapter(context: Context) :
   }
 
   /**
-   * Convert a short int into hex (must be <65536)
+   * Helper to convert a short int into hex (must be <65536)
    * @return A 4-byte hex string.
    */
   private fun intTo4hex(value: Int): String {
@@ -172,7 +171,8 @@ internal class AndroidUsbPcscPluginAdapter(context: Context) :
   private val notifyScanResults =
       Runnable {
         Timber.d(
-            "Notifying USB scan results (${usbDeviceInfoMap.size} device(s) found), stop USB scanning.")
+            "Notifying USB scan results (%d device(s) found), stop USB scanning.",
+            usbDeviceInfoMap.size)
         context.unregisterReceiver(usbAttachReceiver)
         deviceScannerSpi.onDeviceDiscovered(usbDeviceInfoMap.values)
       }

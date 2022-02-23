@@ -319,7 +319,7 @@ internal constructor(internal val layerDevice: Any, userCallbacks: SCardReaderLi
             slotsToConnect.removeAt(0)
           }
         } else {
-          Log.w(TAG, "slotsToConnect list is empty")
+          Log.d(TAG, "slotsToConnect list is empty")
         }
       } else {
         Log.w(TAG, "Could not call connecting to card")

@@ -6,8 +6,6 @@
 package com.springcard.keyple.plugin.android.pcsc
 
 import android.os.ConditionVariable
-import com.springcard.keyple.plugin.android.pcsc.AndroidPcscReader.Companion.WAIT_CARD_CONNECT_TIMEOUT
-import com.springcard.keyple.plugin.android.pcsc.AndroidPcscReader.Companion.WAIT_RESPONSE_TIMEOUT
 import com.springcard.pcsclike.SCardReader
 import org.eclipse.keyple.core.plugin.CardIOException
 import org.eclipse.keyple.core.plugin.ReaderIOException
@@ -29,12 +27,16 @@ internal class AndroidPcscReaderAdapter(val sCardReader: SCardReader) :
     DontWaitForCardRemovalDuringProcessingSpi,
     WaitForCardRemovalBlockingSpi {
 
-  private lateinit var cardResponse: ByteArray
-  private var isCardPresent: Boolean = false
   private val name: String = sCardReader.name
+  private var isContactless: Boolean = false
+  private var isCardPresent: Boolean = false
+
+  private val WAIT_RESPONSE_TIMEOUT: Long = 5000
+  private val WAIT_CARD_CONNECT_TIMEOUT: Long = 5000
   private val waitCardStatusChange = ConditionVariable()
-  private val waitCardResponse = ConditionVariable()
   private val waitCardConnect = ConditionVariable()
+  private val waitCardResponse = ConditionVariable()
+  private lateinit var cardResponse: ByteArray
 
   override fun getName(): String {
     return name
@@ -58,29 +60,25 @@ internal class AndroidPcscReaderAdapter(val sCardReader: SCardReader) :
 
   override fun isPhysicalChannelOpen(): Boolean {
     val isCardConnected = sCardReader.cardConnected
-    Timber.v("Physical channel is open: $isCardConnected")
+    Timber.v("Physical channel is open: %b", isCardConnected)
     return isCardConnected
   }
 
   override fun checkCardPresence(): Boolean {
     isCardPresent = sCardReader.cardPresent
-    Timber.v("Card present: $isCardPresent")
+    Timber.v("Card present: %b", isCardPresent)
     return isCardPresent
   }
 
   override fun getPowerOnData(): String {
-    val powerOnDataHex = ByteArrayUtil.toHex(sCardReader.channel.atr)
-    Timber.v("Power on data: $powerOnDataHex")
-    return powerOnDataHex
+    return ByteArrayUtil.toHex(sCardReader.channel.atr)
   }
 
   override fun transmitApdu(apduIn: ByteArray?): ByteArray {
     if (apduIn != null) {
-      Timber.v("APDUC: ${ByteArrayUtil.toHex(apduIn)}")
       sCardReader.channel.transmit(apduIn)
       waitCardResponse.block(WAIT_RESPONSE_TIMEOUT)
       waitCardResponse.close()
-      Timber.v("APDUR: ${ByteArrayUtil.toHex(cardResponse)}")
       return cardResponse
     } else {
       throw CardIOException(this.getName() + ": null channel.")
@@ -88,19 +86,19 @@ internal class AndroidPcscReaderAdapter(val sCardReader: SCardReader) :
   }
 
   override fun isContactless(): Boolean {
-    return true
+    return isContactless
   }
 
   override fun onUnregister() {
-    Timber.i("Unregister reader '$name'")
+    Timber.i("Unregister reader '%s'", name)
   }
 
   override fun onStartDetection() {
-    Timber.i("Starting card detection on reader '$name'")
+    Timber.i("Starting card detection on reader '%s'", name)
   }
 
   override fun onStopDetection() {
-    Timber.i("Stopping card detection on reader '$name'")
+    Timber.i("Stopping card detection on reader '%s'", name)
   }
 
   override fun isProtocolSupported(readerProtocol: String?): Boolean {
@@ -142,19 +140,24 @@ internal class AndroidPcscReaderAdapter(val sCardReader: SCardReader) :
     waitCardStatusChange.close()
   }
 
+  override fun setContactless(contactless: Boolean): AndroidPcscReader {
+    isContactless = contactless
+    return this
+  }
+
   fun onCardPresenceChange(isCardPresent: Boolean) {
-    Timber.d("Reader '$name', card presence changed: $isCardPresent")
+    Timber.d("Reader '%s', card presence changed: %b", name, isCardPresent)
     this.isCardPresent = isCardPresent
     waitCardStatusChange.open()
   }
 
-  fun onCardResponseReceived(cardResponse: ByteArray) {
-    Timber.d("Reader '$name', ${cardResponse.size} bytes received from the card")
-    this.cardResponse = cardResponse
-    waitCardResponse.open()
-  }
-
   fun onCardConnected() {
     waitCardConnect.open()
+  }
+
+  fun onCardResponseReceived(cardResponse: ByteArray) {
+    Timber.d("Reader '%s', %d bytes received from the card", name, cardResponse.size)
+    this.cardResponse = cardResponse
+    waitCardResponse.open()
   }
 }

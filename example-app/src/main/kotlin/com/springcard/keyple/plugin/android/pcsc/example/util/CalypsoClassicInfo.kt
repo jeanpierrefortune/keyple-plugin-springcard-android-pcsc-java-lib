@@ -29,10 +29,10 @@ object CalypsoClassicInfo {
   // public final static String AID = "315449432E494341";
   /** SAM C1 regular expression: platform, version and serial number values are ignored */
   const val ATR_REV1_REGEX = "3B8F8001805A0A0103200311........829000.."
-  const val RECORD_NUMBER_1: Byte = 1
-  const val RECORD_NUMBER_2: Byte = 2
-  const val RECORD_NUMBER_3: Byte = 3
-  const val RECORD_NUMBER_4: Byte = 4
+  const val RECORD_NUMBER_1 = 1
+  const val RECORD_NUMBER_2 = 2
+  const val RECORD_NUMBER_3 = 3
+  const val RECORD_NUMBER_4 = 4
   const val SFI_EnvironmentAndHolder = 0x07.toByte()
   const val SFI_EventLog = 0x08.toByte()
   const val SFI_ContractList = 0x1E.toByte()
@@ -43,5 +43,5 @@ object CalypsoClassicInfo {
   // Security settings
   const val SAM_PROFILE_NAME = "SAM C1"
 
-  const val SAM_READER_NAME_REGEX = ".*ContactReader"
+  const val RECORD_SIZE = 29
 }

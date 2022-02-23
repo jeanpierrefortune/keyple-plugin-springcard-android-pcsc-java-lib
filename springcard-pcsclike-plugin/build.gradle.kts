@@ -104,7 +104,7 @@ dependencies {
     //logging
     implementation("org.slf4j:slf4j-api:1.7.32")
     implementation("com.jakewharton.timber:timber:4.7.1") //Android
-    implementation("com.arcao:slf4j-timber:3.1@aar") //SLF4J binding for Timber
+    implementation("at.favre.lib:slf4j-timber:1.0.1") //SLF4J binding for Timber
 
     /** Test **/
     testImplementation("androidx.test:core-ktx:1.3.0")

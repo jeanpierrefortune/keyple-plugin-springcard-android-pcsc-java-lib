@@ -51,7 +51,7 @@ internal class AndroidBlePcscPluginAdapter(context: Context) :
   }
 
   override fun connectToDevice(identifier: String) {
-    Timber.d("Connection to BLE device: ${identifier}.")
+    Timber.d("Connection to BLE device: %s", identifier)
     val bluetoothDevice = bluetoothDeviceList[identifier]
     if (bluetoothDevice != null) {
       SCardReaderList.create(context, bluetoothDevice, scardCallbacks)
@@ -115,7 +115,7 @@ internal class AndroidBlePcscPluginAdapter(context: Context) :
               }
           if (callbackType == ScanSettings.CALLBACK_TYPE_ALL_MATCHES) {
             if (!bluetoothDeviceInfoMap.containsKey(bleDeviceInfo.identifier)) {
-              Timber.d("BLE device added: ${bleDeviceInfo.toString()}")
+              Timber.d("BLE device added: %s", bleDeviceInfo.toString())
               bluetoothDeviceInfoMap[bleDeviceInfo.identifier] = bleDeviceInfo
               bluetoothDeviceList[bleDeviceInfo.identifier] = result.device
               if (stopOnFirstDeviceDiscovered) {
@@ -126,7 +126,7 @@ internal class AndroidBlePcscPluginAdapter(context: Context) :
             }
           } else if (callbackType == ScanSettings.CALLBACK_TYPE_MATCH_LOST &&
               bluetoothDeviceInfoMap.containsKey(result.device.address)) {
-            Timber.d("BLE device removed: ${result.device.address}")
+            Timber.d("BLE device removed: %s", result.device.address)
             bluetoothDeviceList.remove(result.device.address)
             bluetoothDeviceInfoMap.remove(result.device.address)
           }
@@ -146,7 +146,7 @@ internal class AndroidBlePcscPluginAdapter(context: Context) :
         Timber.d("BLE scan Thread already running.")
         return
       }
-      Timber.d("Scan BLE devices for ${scanDelay} ms.")
+      Timber.d("Scan BLE devices for %d ms", scanDelay)
       scanThread = Thread(scanRunnable)
       scanThread!!.start()
 

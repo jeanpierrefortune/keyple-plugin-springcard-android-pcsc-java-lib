@@ -13,6 +13,8 @@ class DemoApplication : Application() {
   override fun onCreate() {
     super.onCreate()
     MultiDex.install(this)
-    Timber.plant(Timber.DebugTree())
+    if (BuildConfig.DEBUG) {
+      Timber.plant(Timber.DebugTree())
+    }
   }
 }

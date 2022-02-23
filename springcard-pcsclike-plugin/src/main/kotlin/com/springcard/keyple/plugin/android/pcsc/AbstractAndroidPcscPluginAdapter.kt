@@ -6,12 +6,14 @@
 package com.springcard.keyple.plugin.android.pcsc
 
 import android.content.Context
+import android.os.ConditionVariable
 import com.springcard.keyple.plugin.android.pcsc.spi.DeviceScannerSpi
 import com.springcard.pcsclike.SCardChannel
 import com.springcard.pcsclike.SCardError
 import com.springcard.pcsclike.SCardReader
 import com.springcard.pcsclike.SCardReaderList
 import com.springcard.pcsclike.SCardReaderListCallback
+import org.eclipse.keyple.core.plugin.CardIOException
 import org.eclipse.keyple.core.plugin.spi.ObservablePluginSpi
 import org.eclipse.keyple.core.plugin.spi.reader.ReaderSpi
 import timber.log.Timber
@@ -19,12 +21,15 @@ import timber.log.Timber
 /** Class providing the common features of both USB and BLE links */
 internal abstract class AbstractAndroidPcscPluginAdapter(var context: Context) :
     AndroidPcscPlugin, ObservablePluginSpi {
-  companion object {
-    private const val MONITORING_CYCLE_DURATION_MS = 1000
-  }
 
+  private val WAIT_RESPONSE_TIMEOUT: Long = 5000
+  private val MONITORING_CYCLE_DURATION_MS = 1000
+
+  protected lateinit var readerList: SCardReaderList
   private var sCardReaders: MutableMap<String, SCardReader> = mutableMapOf()
   private val readerSpis: MutableMap<String, AndroidPcscReaderAdapter> = mutableMapOf()
+  private val waitControlResponse = ConditionVariable()
+  private lateinit var controlResponse: ByteArray
 
   abstract override fun scanDevices(
       timeout: Long,
@@ -65,25 +70,45 @@ internal abstract class AbstractAndroidPcscPluginAdapter(var context: Context) :
   }
 
   override fun onUnregister() {
-    TODO("Not yet implemented")
+    readerList.close()
   }
 
+  override fun transmitControl(dataIn: ByteArray?): ByteArray {
+    if (dataIn != null && sCardReaders.isNotEmpty()) {
+      // use the reader list to transmit controls
+      readerList.control(dataIn)
+      waitControlResponse.block(WAIT_RESPONSE_TIMEOUT)
+      waitControlResponse.close()
+      return controlResponse
+    } else {
+      throw CardIOException(this.getName() + ": null channel.")
+    }
+  }
+
+  /** Invoked when a response to control is received */
+  private fun onCardControlResponseReceived(controlResponse: ByteArray) {
+    Timber.d("Reader '%s', %d bytes received from the reader", name, controlResponse.size)
+    this.controlResponse = controlResponse
+    waitControlResponse.open()
+  }
+
+  /** Implementation of the callback methods defined by @SCardReaderList */
   var scardCallbacks: SCardReaderListCallback =
       object : SCardReaderListCallback() {
-        override fun onReaderListCreated(readerList: SCardReaderList) {
-          for (i in 0 until readerList.slotCount) {
-            Timber.v("Add reader: ${readerList.slots[i]}")
-            readerList.getReader(i)?.let { sCardReaders.put(it.name, it) }
+        override fun onReaderListCreated(sCardReaderList: SCardReaderList) {
+          for (i in 0 until sCardReaderList.slotCount) {
+            Timber.v("Add reader: %s", sCardReaderList.slots[i])
+            sCardReaderList.getReader(i)?.let { sCardReaders.put(it.name, it) }
           }
+          readerList = sCardReaderList
         }
 
         override fun onReaderListClosed(readerList: SCardReaderList?) {
-          Timber.v("onReaderListClosed")
           sCardReaders.clear()
         }
 
         override fun onControlResponse(readerList: SCardReaderList, response: ByteArray) {
-          Timber.v("onControlResponse")
+          onCardControlResponseReceived(response)
         }
 
         override fun onReaderStatus(
@@ -92,34 +117,36 @@ internal abstract class AbstractAndroidPcscPluginAdapter(var context: Context) :
             cardConnected: Boolean
         ) {
           Timber.v(
-              "onReaderStatus: reader=${slot.name}, cardPresent=$cardPresent, cardConnected=$cardConnected")
+              "onReaderStatus: reader=%s, cardPresent=%s, cardConnected=%s",
+              slot.name,
+              cardPresent,
+              cardConnected)
           readerSpis[slot.name]?.onCardPresenceChange(cardPresent)
         }
 
         override fun onCardConnected(channel: SCardChannel) {
-          Timber.v("onCardConnected: reader=${channel.parent.name}")
+          Timber.v("onCardConnected: reader=%s", channel.parent.name)
           readerSpis[channel.parent.name]?.onCardConnected()
         }
 
         override fun onCardDisconnected(channel: SCardChannel) {
-          Timber.v("onCardDisconnected")
+          // disconnection already notified by @onReaderStatus
         }
 
         override fun onTransmitResponse(channel: SCardChannel, response: ByteArray) {
-          Timber.v("onTransmitResponse")
           readerSpis[channel.parent.name]?.onCardResponseReceived(response)
         }
 
         override fun onReaderListError(readerList: SCardReaderList?, error: SCardError) {
-          Timber.v("onReaderListError")
+          Timber.v("onReaderListError: (%d) %s", error.code.value, error.code.name)
         }
 
         override fun onReaderOrCardError(readerOrCard: Any, error: SCardError) {
-          Timber.v("onReaderOrCardError")
+          Timber.v("onReaderOrCardError (%d) %s", error.code.value, error.code.name)
         }
 
         override fun onReaderListState(readerList: SCardReaderList, isInLowPowerMode: Boolean) {
-          Timber.v("onReaderListState")
+          Timber.v("onReaderListState: isInLowPowerMode %b", isInLowPowerMode)
         }
       }
 }
