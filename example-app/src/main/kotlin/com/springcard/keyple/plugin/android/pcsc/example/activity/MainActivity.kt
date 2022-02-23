@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2018-2018 SpringCard - www.springcard.com
+ * Copyright (c)2022 SpringCard - www.springcard.com.com
  * All right reserved
  * This software is covered by the SpringCard SDK License Agreement - see LICENSE.txt
  */
@@ -14,16 +14,22 @@ import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.Build
-import android.view.MenuItem
+import android.os.Bundle
+import android.view.WindowManager
 import android.widget.Toast
+import androidx.appcompat.app.AppCompatActivity
 import androidx.core.view.GravityCompat
+import androidx.recyclerview.widget.LinearLayoutManager
+import androidx.recyclerview.widget.RecyclerView
 import com.springcard.keyple.plugin.android.pcsc.AndroidPcscPlugin
 import com.springcard.keyple.plugin.android.pcsc.AndroidPcscPluginFactory
 import com.springcard.keyple.plugin.android.pcsc.AndroidPcscPluginFactoryProvider
 import com.springcard.keyple.plugin.android.pcsc.AndroidPcscSupportContactlessProtocols
 import com.springcard.keyple.plugin.android.pcsc.DeviceInfo
 import com.springcard.keyple.plugin.android.pcsc.example.R
+import com.springcard.keyple.plugin.android.pcsc.example.adapter.EventAdapter
 import com.springcard.keyple.plugin.android.pcsc.example.dialog.PermissionDeniedDialog
+import com.springcard.keyple.plugin.android.pcsc.example.model.EventModel
 import com.springcard.keyple.plugin.android.pcsc.example.util.CalypsoClassicInfo
 import com.springcard.keyple.plugin.android.pcsc.example.util.PermissionHelper
 import com.springcard.keyple.plugin.android.pcsc.spi.DeviceScannerSpi
@@ -34,14 +40,13 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import org.calypsonet.terminal.calypso.WriteAccessLevel
 import org.calypsonet.terminal.calypso.card.CalypsoCard
 import org.calypsonet.terminal.calypso.transaction.CardSecuritySetting
 import org.calypsonet.terminal.reader.CardReaderEvent
 import org.calypsonet.terminal.reader.ObservableCardReader
 import org.calypsonet.terminal.reader.selection.CardSelectionManager
-import org.calypsonet.terminal.reader.selection.CardSelectionResult
-import org.calypsonet.terminal.reader.selection.ScheduledCardSelectionsResponse
+import org.calypsonet.terminal.reader.spi.CardReaderObserverSpi
+import org.eclipse.keyple.card.calypso.CalypsoExtensionService
 import org.eclipse.keyple.core.common.KeyplePluginExtensionFactory
 import org.eclipse.keyple.core.service.ConfigurableReader
 import org.eclipse.keyple.core.service.KeyplePluginException
@@ -55,8 +60,17 @@ import org.eclipse.keyple.core.util.ByteArrayUtil
 import timber.log.Timber
 
 /** Activity launched on app start up that display the only screen available on this example app. */
-class MainActivity : AbstractExampleActivity(), PluginObserverSpi, DeviceScannerSpi {
+class MainActivity :
+    AppCompatActivity(), PluginObserverSpi, CardReaderObserverSpi, DeviceScannerSpi {
+  /** Variables for event window */
+  private lateinit var adapter: RecyclerView.Adapter<*>
+  private lateinit var layoutManager: RecyclerView.LayoutManager
+  private val events = arrayListOf<EventModel>()
+
   private lateinit var androidPcscPlugin: Plugin
+  private lateinit var cardReader: ObservableReader
+  private val calypsoCardExtensionProvider: CalypsoExtensionService =
+      CalypsoExtensionService.getInstance()
   private lateinit var cardSelectionManager: CardSelectionManager
   private lateinit var cardProtocol: AndroidPcscSupportContactlessProtocols
   private var cardSecuritySettings: CardSecuritySetting? = null
@@ -73,14 +87,62 @@ class MainActivity : AbstractExampleActivity(), PluginObserverSpi, DeviceScanner
   private val BluetoothAdapter.isDisabled: Boolean
     get() = !isEnabled
 
-  private enum class TransactionType {
-    DECREASE,
-    INCREASE
+  override fun onCreate(savedInstanceState: Bundle?) {
+    super.onCreate(savedInstanceState)
+    setContentView(R.layout.activity_main)
+    setSupportActionBar(toolbar)
+    supportActionBar?.title = "Keyple Demo"
+    supportActionBar?.subtitle = "SpringCard AndroidPcsc Plugin"
+
+    /** Init recycler view */
+    adapter = EventAdapter(events)
+    layoutManager = LinearLayoutManager(this)
+    eventRecyclerView.layoutManager = layoutManager
+    eventRecyclerView.adapter = adapter
+    window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
   }
 
-  override fun initContentView() {
-    setContentView(R.layout.activity_main)
-    initActionBar(toolbar, "Keyple demo", "AndroidPcsc Plugin")
+  private fun showAlertDialog(t: Throwable, finish: Boolean = false, cancelable: Boolean = true) {
+    val builder = androidx.appcompat.app.AlertDialog.Builder(this@MainActivity)
+    builder.setTitle(R.string.alert_dialog_title)
+    builder.setMessage(getString(R.string.alert_dialog_message, t.message))
+    if (finish) {
+      builder.setNegativeButton(R.string.quit) { _, _ -> finish() }
+    }
+    val dialog = builder.create()
+    dialog.setCancelable(cancelable)
+    dialog.show()
+  }
+
+  private fun clearEvents() {
+    events.clear()
+    adapter.notifyDataSetChanged()
+  }
+
+  private fun addHeaderEvent(message: String) {
+    events.add(EventModel(EventModel.TYPE_HEADER, message))
+    updateList()
+    Timber.d("Header: %s", message)
+  }
+
+  private fun addActionEvent(message: String) {
+    events.add(EventModel(EventModel.TYPE_ACTION, message))
+    updateList()
+    Timber.d("Action: %s", message)
+  }
+
+  private fun addResultEvent(message: String) {
+    events.add(EventModel(EventModel.TYPE_RESULT, message))
+    updateList()
+    Timber.d("Result: %s", message)
+  }
+
+  private fun updateList() {
+    CoroutineScope(Dispatchers.Main).launch {
+      adapter.notifyDataSetChanged()
+      adapter.notifyItemInserted(events.lastIndex)
+      eventRecyclerView.smoothScrollToPosition(events.size - 1)
+    }
   }
 
   /** Called when the activity (screen) is first displayed or resumed from background */
@@ -119,7 +181,7 @@ class MainActivity : AbstractExampleActivity(), PluginObserverSpi, DeviceScanner
   }
 
   /** Initializes the card reader (Contact Reader) and SAM reader (Contactless Reader) */
-  override fun initReaders(link: AndroidPcscPluginFactory.Type.Link) {
+  private fun initReaders(link: AndroidPcscPluginFactory.Type.Link) {
     Timber.d("initReaders")
     // Connexion to AndroidPcsc lib take time, we've added a callback to this factory.
     GlobalScope.launch {
@@ -223,35 +285,6 @@ class MainActivity : AbstractExampleActivity(), PluginObserverSpi, DeviceScanner
     }
   }
 
-  override fun onNavigationItemSelected(item: MenuItem): Boolean {
-    if (drawerLayout.isDrawerOpen(GravityCompat.START)) {
-      drawerLayout.closeDrawer(GravityCompat.START)
-    }
-    when (item.itemId) {
-      R.id.usecase1 -> {
-        clearEvents()
-        addHeaderEvent("Running Calypso Read transaction (without SAM)")
-        configureCalypsoTransaction(::runCardReadTransactionWithoutSam)
-      }
-      R.id.usecase2 -> {
-        clearEvents()
-        addHeaderEvent("Running Calypso Read transaction (with SAM)")
-        configureCalypsoTransaction(::runCardReadTransactionWithSam)
-      }
-      R.id.usecase3 -> {
-        clearEvents()
-        addHeaderEvent("Running Calypso Read/Write transaction")
-        configureCalypsoTransaction(::runCardReadWriteIncreaseTransaction)
-      }
-      R.id.usecase4 -> {
-        clearEvents()
-        addHeaderEvent("Running Calypso Read/Write transaction")
-        configureCalypsoTransaction(::runCardReadWriteDecreaseTransaction)
-      }
-    }
-    return true
-  }
-
   override fun onReaderEvent(readerEvent: CardReaderEvent?) {
     addResultEvent("New ReaderEvent received : ${readerEvent?.type?.name}")
 
@@ -274,7 +307,7 @@ class MainActivity : AbstractExampleActivity(), PluginObserverSpi, DeviceScanner
             }")
           GlobalScope.launch(Dispatchers.IO) {
             try {
-              CalypsoTransaction.runCardTransaction(cardReader, calypsoCard, cardSecuritySettings)
+              CardManager.runCardTransaction(cardReader, calypsoCard, cardSecuritySettings)
               val counter =
                   calypsoCard
                       .getFileBySfi(CalypsoClassicInfo.SFI_Counter1)
@@ -305,251 +338,6 @@ class MainActivity : AbstractExampleActivity(), PluginObserverSpi, DeviceScanner
         else -> {
           // Do nothing
         }
-      }
-    }
-  }
-
-  private fun configureCalypsoTransaction(
-      responseProcessor: (selectionsResponse: ScheduledCardSelectionsResponse) -> Unit
-  ) {
-    addActionEvent("Prepare Calypso card Selection with AID: ${CalypsoClassicInfo.AID}")
-    cardSelectionManager = CalypsoTransaction.initiateScheduledCardSelection(cardReader)
-  }
-
-  private fun runCardReadTransactionWithSam(selectionsResponse: ScheduledCardSelectionsResponse) {
-    runCardReadTransaction(selectionsResponse, true)
-  }
-
-  private fun runCardReadTransactionWithoutSam(
-      selectionsResponse: ScheduledCardSelectionsResponse
-  ) {
-    runCardReadTransaction(selectionsResponse, false)
-  }
-
-  private fun runCardReadTransaction(
-      selectionsResponse: ScheduledCardSelectionsResponse,
-      withSam: Boolean
-  ) {
-
-    GlobalScope.launch(Dispatchers.IO) {
-      try {
-        /*
-         * print tag info in View
-         */
-
-        addActionEvent("Process selection")
-        val selectionsResult =
-            cardSelectionManager.parseScheduledCardSelectionsResponse(selectionsResponse)
-
-        val calypsoCard = selectionsResult.activeSmartCard as CalypsoCard
-
-        addResultEvent(
-            "Selection successful of card ${ByteArrayUtil.toHex(calypsoCard.applicationSerialNumber)}")
-
-        /*
-         * Retrieve the data read from the parser updated during the selection process
-         */
-        val efEnvironmentHolder =
-            calypsoCard.getFileBySfi(CalypsoClassicInfo.SFI_EnvironmentAndHolder)
-        addActionEvent("Read environment and holder data")
-
-        addResultEvent(
-            "Environment and Holder file: ${
-                          ByteArrayUtil.toHex(
-                              efEnvironmentHolder.data.content
-                          )
-                      }")
-
-        val cardTransaction =
-            if (withSam) {
-              addActionEvent("Create a secured card transaction with SAM")
-
-              // Configure the card resource service to provide an adequate SAM for future secure
-              // operations.
-              // We suppose here, we use a Identive contact PC/SC reader as card reader.
-              val androidPcscPlugin =
-                  SmartCardServiceProvider.getService().getPlugin(AndroidPcscPlugin.PLUGIN_NAME)
-              setupCardResourceService(
-                  androidPcscPlugin,
-                  CalypsoClassicInfo.SAM_READER_NAME_REGEX,
-                  CalypsoClassicInfo.SAM_PROFILE_NAME)
-
-              /*
-               * Create secured card transaction.
-               *
-               * check the availability of the SAM doing a ATR based selection, open its physical and
-               * logical channels and keep it open
-               */
-              calypsoCardExtensionProvider.createCardTransaction(
-                  cardReader, calypsoCard, getSecuritySettings())
-            } else {
-              // Create unsecured card transaction
-              calypsoCardExtensionProvider.createCardTransactionWithoutSecurity(
-                  cardReader, calypsoCard)
-            }
-
-        /*
-         * Prepare the reading order and keep the associated parser for later use once the
-         * transaction has been processed.
-         */
-        cardTransaction.prepareReadRecordFile(
-            CalypsoClassicInfo.SFI_EventLog, CalypsoClassicInfo.RECORD_NUMBER_1.toInt())
-
-        cardTransaction.prepareReadRecordFile(
-            CalypsoClassicInfo.SFI_Counter1, CalypsoClassicInfo.RECORD_NUMBER_1.toInt())
-
-        /*
-         * Actual card communication: send the prepared read order, then close the channel
-         * with the card
-         */
-        addActionEvent("Process card Command for counter and event logs reading")
-
-        if (withSam) {
-          addActionEvent("Process card Opening session for transactions")
-          cardTransaction.processOpening(WriteAccessLevel.LOAD)
-          addResultEvent("Opening session: SUCCESS")
-          val counter = readCounter(selectionsResult)
-          val eventLog = ByteArrayUtil.toHex(readEventLog(selectionsResult))
-
-          addActionEvent("Process card Closing session")
-          cardTransaction.processClosing()
-          addResultEvent("Closing session: SUCCESS")
-
-          // In secured reading, value read elements can only be trusted if the session is closed
-          // without error.
-          addResultEvent("Counter value: $counter")
-          addResultEvent("EventLog file: $eventLog")
-        } else {
-          cardTransaction.processCardCommands()
-          addResultEvent("Counter value: ${readCounter(selectionsResult)}")
-          addResultEvent(
-              "EventLog file: ${
-                              ByteArrayUtil.toHex(
-                                  readEventLog(
-                                      selectionsResult
-                                  )
-                              )
-                          }")
-        }
-
-        addResultEvent("End of the Calypso card processing.")
-        addResultEvent("You can remove the card now")
-      } catch (e: KeyplePluginException) {
-        Timber.e(e)
-        addResultEvent("Exception: ${e.message}")
-      } catch (e: Exception) {
-        Timber.e(e)
-        addResultEvent("Exception: ${e.message}")
-      }
-    }
-  }
-
-  private fun readCounter(selectionsResult: CardSelectionResult): Int {
-    val calypsoCard = selectionsResult.activeSmartCard as CalypsoCard
-    val efCounter1 = calypsoCard.getFileBySfi(CalypsoClassicInfo.SFI_Counter1)
-    return efCounter1.data.getContentAsCounterValue(CalypsoClassicInfo.RECORD_NUMBER_1.toInt())
-  }
-
-  private fun readEventLog(selectionsResult: CardSelectionResult): ByteArray? {
-    val calypsoCard = selectionsResult.activeSmartCard as CalypsoCard
-    val efCounter1 = calypsoCard.getFileBySfi(CalypsoClassicInfo.SFI_EventLog)
-    return efCounter1.data.content
-  }
-
-  private fun runCardReadWriteIncreaseTransaction(
-      selectionsResponse: ScheduledCardSelectionsResponse
-  ) {
-    runCardReadWriteTransaction(selectionsResponse, TransactionType.INCREASE)
-  }
-
-  private fun runCardReadWriteDecreaseTransaction(
-      selectionsResponse: ScheduledCardSelectionsResponse
-  ) {
-    runCardReadWriteTransaction(selectionsResponse, TransactionType.DECREASE)
-  }
-
-  private fun runCardReadWriteTransaction(
-      selectionsResponse: ScheduledCardSelectionsResponse,
-      transactionType: TransactionType
-  ) {
-    GlobalScope.launch(Dispatchers.IO) {
-      try {
-        addActionEvent("1st card exchange: aid selection")
-        val selectionsResult =
-            cardSelectionManager.parseScheduledCardSelectionsResponse(selectionsResponse)
-
-        if (selectionsResult.activeSelectionIndex != -1) {
-          addResultEvent("Calypso card selection: SUCCESS")
-          val calypsoCard = selectionsResult.activeSmartCard as CalypsoCard
-          addResultEvent("AID: ${ByteArrayUtil.fromHex(CalypsoClassicInfo.AID)}")
-
-          val androidPcscPlugin =
-              SmartCardServiceProvider.getService().getPlugin(AndroidPcscPlugin.PLUGIN_NAME)
-          setupCardResourceService(
-              androidPcscPlugin,
-              CalypsoClassicInfo.SAM_READER_NAME_REGEX,
-              CalypsoClassicInfo.SAM_PROFILE_NAME)
-
-          addActionEvent("Create secured card transaction with SAM")
-          // Create secured card transaction
-          val cardTransaction =
-              calypsoCardExtensionProvider.createCardTransaction(
-                  cardReader, calypsoCard, getSecuritySettings())
-
-          when (transactionType) {
-            TransactionType.INCREASE -> {
-              /*
-               * Open Session for the debit key
-               */
-              addActionEvent("Process card Opening session for transactions")
-              cardTransaction.processOpening(WriteAccessLevel.LOAD)
-              addResultEvent("Opening session: SUCCESS")
-
-              cardTransaction.prepareReadRecordFile(
-                  CalypsoClassicInfo.SFI_Counter1, CalypsoClassicInfo.RECORD_NUMBER_1.toInt())
-              cardTransaction.processCardCommands()
-
-              cardTransaction.prepareIncreaseCounter(
-                  CalypsoClassicInfo.SFI_Counter1, CalypsoClassicInfo.RECORD_NUMBER_1.toInt(), 10)
-              addActionEvent("Process card increase counter by 10")
-              cardTransaction.processClosing()
-              addResultEvent("Increase by 10: SUCCESS")
-            }
-            TransactionType.DECREASE -> {
-              /*
-               * Open Session for the debit key
-               */
-              addActionEvent("Process card Opening session for transactions")
-              cardTransaction.processOpening(WriteAccessLevel.DEBIT)
-              addResultEvent("Opening session: SUCCESS")
-
-              cardTransaction.prepareReadRecordFile(
-                  CalypsoClassicInfo.SFI_Counter1, CalypsoClassicInfo.RECORD_NUMBER_1.toInt())
-              cardTransaction.processCardCommands()
-
-              /*
-               * A ratification command will be sent (CONTACTLESS_MODE).
-               */
-              cardTransaction.prepareDecreaseCounter(
-                  CalypsoClassicInfo.SFI_Counter1, CalypsoClassicInfo.RECORD_NUMBER_1.toInt(), 1)
-              addActionEvent("Process card decreasing counter and close transaction")
-              cardTransaction.processClosing()
-              addResultEvent("Decrease by 1: SUCCESS")
-            }
-          }
-
-          addResultEvent("End of the Calypso card processing.")
-          addResultEvent("You can remove the card now")
-        } else {
-          addResultEvent(
-              "The selection of the card has failed. Should not have occurred due to the MATCHED_ONLY selection mode.")
-        }
-      } catch (e: KeyplePluginException) {
-        Timber.e(e)
-        addResultEvent("Exception: ${e.message}")
-      } catch (e: Exception) {
-        Timber.e(e)
-        addResultEvent("Exception: ${e.message}")
       }
     }
   }
@@ -615,24 +403,25 @@ class MainActivity : AbstractExampleActivity(), PluginObserverSpi, DeviceScanner
     // Set the current activity as Observer of the card reader
     cardReader.addObserver(this@MainActivity)
 
-    cardProtocol = AndroidPcscSupportContactlessProtocols.NFC_ALL
+    cardProtocol = AndroidPcscSupportContactlessProtocols.ALL
     // Activate protocols for the card reader
     (cardReader as ConfigurableReader).activateProtocol(cardProtocol.key, cardProtocol.key)
 
     areReadersInitialized.set(true)
 
-    // Start the NFC detection
     cardReader.startCardDetection(ObservableCardReader.DetectionMode.REPEATING)
 
-    configureCalypsoTransaction(::runCardReadTransactionWithoutSam)
+    addActionEvent("Prepare Calypso card Selection with AID: ${CalypsoClassicInfo.AID}")
+    cardSelectionManager = CardManager.initiateScheduledCardSelection(cardReader)
   }
 
   private fun onSamReaderConnected(readerName: String) {
     addActionEvent("SAM reader '$readerName' connected.")
 
-    CalypsoTransaction.setupCardResourceService(androidPcscPlugin, readerName, CalypsoClassicInfo.SAM_PROFILE_NAME)
+    CardManager.setupCardResourceService(
+        androidPcscPlugin, readerName, CalypsoClassicInfo.SAM_PROFILE_NAME)
 
-    cardSecuritySettings = CalypsoTransaction.getSecuritySettings()
+    cardSecuritySettings = CardManager.getSecuritySettings()
   }
 
   override fun onDeviceDiscovered(deviceInfoList: MutableCollection<DeviceInfo>) {

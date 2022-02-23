@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2018-2018 SpringCard - www.springcard.com
+ * Copyright (c)2022 SpringCard - www.springcard.com.com
  * All right reserved
  * This software is covered by the SpringCard SDK License Agreement - see LICENSE.txt
  */
@@ -13,6 +13,8 @@ import com.springcard.pcsclike.SCardReaderList
 @RequiresApi(Build.VERSION_CODES.LOLLIPOP)
 internal class BleLayer(scardReaderList: SCardReaderList, bluetoothDevice: BluetoothDevice) :
     CommunicationLayer(scardReaderList) {
+
+  private val TAG = this::class.java.simpleName
 
   override var lowLayer = BleLowLevel(scardReaderList, bluetoothDevice) as LowLevelLayer
 

@@ -1,23 +1,22 @@
 /*
- * Copyright (c) 2018-2018-2018 SpringCard - www.springcard.com
+ * Copyright (c)2022 SpringCard - www.springcard.com.com
  * All right reserved
  * This software is covered by the SpringCard SDK License Agreement - see LICENSE.txt
  */
 package com.springcard.pcsclike.ccid
 
-import com.springcard.pcsclike.utils.RotateLeftOneByte
-import com.springcard.pcsclike.utils.RotateRightOneByte
-import com.springcard.pcsclike.utils.XOR
-import com.springcard.pcsclike.utils.toHexString
+import android.util.Log
+import com.springcard.pcsclike.utils.*
 import java.lang.Exception
 import javax.crypto.Cipher
 import javax.crypto.spec.IvParameterSpec
 import javax.crypto.spec.SecretKeySpec
 import kotlin.experimental.xor
 import kotlin.random.Random
-import timber.log.Timber
 
 internal class CcidSecure(private val secureConnectionParameters: CcidSecureParameters) {
+
+  private val TAG = this::class.java.simpleName
 
   private val protocolCode: Byte = 0x00
   private val useRandom = true
@@ -42,25 +41,25 @@ internal class CcidSecure(private val secureConnectionParameters: CcidSecurePara
     /* Extract the data */
     var data = frame.raw.drop(10).toMutableList()
 
-    Timber.d("   >     (crypted data) ${data.toHexString()}")
+    Log.d(TAG, "   >     (crypted data) ${data.toHexString()}")
 
     /* Decipher the data */
     data = aesCbcDecrypt(sessionEncKey, sessionRecvIV, data)
 
-    Timber.d("   >      (padded data) ${data.toHexString()}")
+    Log.d(TAG, "   >      (padded data) ${data.toHexString()}")
 
     var dataLen = data.size
     while (dataLen > 0 && data[dataLen - 1] == 0x00.toByte()) dataLen--
 
     if (dataLen == 0 || data[dataLen - 1] != 0x80.toByte()) {
       val msg = "Padding is invalid (decryption failed/wrong session key?)"
-      Timber.e(msg)
+      Log.e(TAG, msg)
       throw Exception(msg)
     }
     dataLen -= 1
     data = data.take(dataLen).toMutableList()
 
-    Timber.d("   >       (plain data) ${data.toHexString()}")
+    Log.d(TAG, "   >       (plain data) ${data.toHexString()}")
 
     /* Extract the header and re-create a valid buffer */
     frame.raw = frame.raw.take(10).toMutableList()
@@ -70,11 +69,11 @@ internal class CcidSecure(private val secureConnectionParameters: CcidSecurePara
     /* Compute the CMAC */
     val computedCmac = computeCmac(sessionMacKey, sessionRecvIV, frame.raw)
 
-    Timber.d("   >${frame.raw.toHexString()} -> CMAC=${computedCmac.take(8).toHexString()}")
+    Log.d(TAG, "   >${frame.raw.toHexString()} -> CMAC=${computedCmac.take(8).toHexString()}")
 
     if (receivedCmac != computedCmac.take(8)) {
       val msg = "CMAC is invalid (wrong session key?)"
-      Timber.e(msg)
+      Log.e(TAG, msg)
       throw Exception(msg)
     }
 
@@ -88,12 +87,13 @@ internal class CcidSecure(private val secureConnectionParameters: CcidSecurePara
     /* Compute the CMAC of the plain buffer */
     val cmac = computeCmac(sessionMacKey, sessionSendIV, frame.raw)
 
-    Timber.d("   <${frame.raw.toHexString()} -> CMAC=${cmac.take(8).toMutableList().toHexString()}")
+    Log.d(
+        TAG, "   <${frame.raw.toHexString()} -> CMAC=${cmac.take(8).toMutableList().toHexString()}")
 
     /* Extract the data */
     var data = frame.raw.drop(10).toMutableList()
 
-    Timber.d("   <       (plain data) ${data.toHexString()}")
+    Log.d(TAG, "   <       (plain data) ${data.toHexString()}")
 
     /* Cipher the data */
     data.add(0x80.toByte())
@@ -101,11 +101,11 @@ internal class CcidSecure(private val secureConnectionParameters: CcidSecurePara
       data.add(0x00)
     }
 
-    Timber.d("   <      (padded data) ${data.toHexString()}")
+    Log.d(TAG, "   <      (padded data) ${data.toHexString()}")
 
     data = aesCbcEncrypt(sessionEncKey, sessionSendIV, data)
 
-    Timber.d("   <     (crypted data) ${data.toHexString()}")
+    Log.d(TAG, "   <     (crypted data) ${data.toHexString()}")
 
     /* Update the length */
     frame.length = data.size + 8
@@ -143,7 +143,7 @@ internal class CcidSecure(private val secureConnectionParameters: CcidSecurePara
 
     cmac = iv
 
-    Timber.d("Compute CMAC")
+    Log.d(TAG, "Compute CMAC")
 
     while ((actualLength % 16) != 0) actualLength++
 
@@ -158,15 +158,16 @@ internal class CcidSecure(private val secureConnectionParameters: CcidSecurePara
         }
       }
 
-      Timber.d("\tBlock=${block.toHexString()}, IV=${cmac.toHexString()}, key=${key.toHexString()}")
+      Log.d(
+          TAG, "\tBlock=${block.toHexString()}, IV=${cmac.toHexString()}, key=${key.toHexString()}")
 
       for (j in 0 until 16) block[j] = block[j].xor(cmac[j])
 
-      Timber.d("\tBlock XOR=${block.toHexString()}")
+      Log.d(TAG, "\tBlock XOR=${block.toHexString()}")
 
       cmac = aesEcbEncrypt(key, block)
 
-      Timber.d("\t\t-> ${cmac.toHexString()}")
+      Log.d(TAG, "\t\t-> ${cmac.toHexString()}")
     }
 
     return cmac
@@ -226,13 +227,13 @@ internal class CcidSecure(private val secureConnectionParameters: CcidSecurePara
     val keySelect = secureConnectionParameters.keyIndex.value
     val keyValue = secureConnectionParameters.keyValue
 
-    Timber.d("Running AES mutual authentication using key 0x${String.format("%02X", keySelect)}")
+    Log.d(TAG, "Running AES mutual authentication using key 0x${String.format("%02X", keySelect)}")
 
     /* Generate host nonce */
     rndA = getRandom(16)
 
-    Timber.d("key=${keyValue.toHexString()}")
-    Timber.d("rndA=${rndA.toHexString()}")
+    Log.d(TAG, "key=${keyValue.toHexString()}")
+    Log.d(TAG, "rndA=${rndA.toHexString()}")
 
     /* Host->Device AUTHENTICATE command */
     /* --------------------------------- */
@@ -244,7 +245,7 @@ internal class CcidSecure(private val secureConnectionParameters: CcidSecurePara
     cmdAuthenticate.add(0x01) /* Version & mode = AES128 */
     cmdAuthenticate.add(keySelect)
 
-    Timber.d("   <                    ${cmdAuthenticate.toHexString()}")
+    Log.d(TAG, "   <                    ${cmdAuthenticate.toHexString()}")
 
     return cmdAuthenticate.toByteArray()
   }
@@ -253,24 +254,25 @@ internal class CcidSecure(private val secureConnectionParameters: CcidSecurePara
 
     val rspStep1 = response.toMutableList()
 
-    Timber.d("   >                    ${rspStep1.toHexString()}")
+    Log.d(TAG, "   >                    ${rspStep1.toHexString()}")
 
     /* Device->Host Authentication Step 1 */
     /* ---------------------------------- */
 
     if (rspStep1.size < 1) {
-      Timber.d("Authentication failed at step 1 (response is too short)")
+      Log.d(TAG, "Authentication failed at step 1 (response is too short)")
       return false
     }
 
     if (rspStep1[0] != ProtocolOpcode.Following.value) {
-      Timber.d(
+      Log.d(
+          TAG,
           "Authentication failed at step 1 (the device has reported an error: 0x${String.format("%02X", rspStep1[0])})")
       return false
     }
 
     if (rspStep1.size != 17) {
-      Timber.d("Authentication failed at step 1 (response does not have the expected format)")
+      Log.d(TAG, "Authentication failed at step 1 (response does not have the expected format)")
       return false
     }
 
@@ -281,7 +283,7 @@ internal class CcidSecure(private val secureConnectionParameters: CcidSecurePara
     val t = rspStep1.slice(1..16).toMutableList()
     rndB = aesEcbDecrypt(secureConnectionParameters.keyValue, t)
 
-    Timber.d("rndB=${rndB.toHexString()}")
+    Log.d(TAG, "rndB=${rndB.toHexString()}")
 
     /* Host->Device Authentication Step 2 */
     /* ---------------------------------- */
@@ -296,7 +298,7 @@ internal class CcidSecure(private val secureConnectionParameters: CcidSecurePara
             secureConnectionParameters.keyValue,
             rndB.toByteArray().RotateLeftOneByte().toMutableList()))
 
-    Timber.d("   <                    ${cmdStep2.toHexString()}")
+    Log.d(TAG, "   <                    ${cmdStep2.toHexString()}")
 
     return cmdStep2.toByteArray()
   }
@@ -305,24 +307,25 @@ internal class CcidSecure(private val secureConnectionParameters: CcidSecurePara
 
     val rspStep3 = response.toMutableList()
 
-    Timber.d("   >                    ${rspStep3.toHexString()}")
+    Log.d(TAG, "   >                    ${rspStep3.toHexString()}")
 
     /* Device->Host Authentication Step 3 */
     /* ---------------------------------- */
 
     if (rspStep3.size < 1) {
-      Timber.d("Authentication failed at step 3")
+      Log.d(TAG, "Authentication failed at step 3")
       return false
     }
 
     if (rspStep3[0] != ProtocolOpcode.Success.value) {
-      Timber.d(
+      Log.d(
+          TAG,
           "Authentication failed at step 3 (the device has reported an error: 0x${String.format("%02X", rspStep3[0])})")
       return false
     }
 
     if (rspStep3.size != 17) {
-      Timber.d("Authentication failed at step 3 (response does not have the expected format)")
+      Log.d(TAG, "Authentication failed at step 3 (response does not have the expected format)")
       return false
     }
 
@@ -331,8 +334,8 @@ internal class CcidSecure(private val secureConnectionParameters: CcidSecurePara
     t = t.toByteArray().RotateRightOneByte().toMutableList()
 
     if (t != rndA) {
-      Timber.d("${t.toHexString()}!=${rndA.toHexString()}")
-      Timber.d("Authentication failed at step 3 (device's cryptogram is invalid)")
+      Log.d(TAG, "${t.toHexString()}!=${rndA.toHexString()}")
+      Log.d(TAG, "Authentication failed at step 3 (device's cryptogram is invalid)")
       return false
     }
 
@@ -345,7 +348,7 @@ internal class CcidSecure(private val secureConnectionParameters: CcidSecurePara
     sv1.addAll(8, rndA.slice(8..11))
     sv1.addAll(12, rndB.slice(8..11))
 
-    Timber.d("SV1=${sv1.toHexString()}")
+    Log.d(TAG, "SV1=${sv1.toHexString()}")
 
     val sv2 = mutableListOf<Byte>()
     sv2.addAll(0, rndA.slice(4..7))
@@ -353,20 +356,20 @@ internal class CcidSecure(private val secureConnectionParameters: CcidSecurePara
     sv2.addAll(8, rndA.slice(12..15))
     sv2.addAll(12, rndB.slice(12..15))
 
-    Timber.d("SV2=${sv2.toHexString()}")
+    Log.d(TAG, "SV2=${sv2.toHexString()}")
 
     sessionEncKey = aesEcbEncrypt(secureConnectionParameters.keyValue, sv1)
 
-    Timber.d("Kenc=${sessionEncKey.toHexString()}")
+    Log.d(TAG, "Kenc=${sessionEncKey.toHexString()}")
 
     sessionMacKey = aesEcbEncrypt(secureConnectionParameters.keyValue, sv2)
 
-    Timber.d("Kmac=${sessionMacKey.toHexString()}")
+    Log.d(TAG, "Kmac=${sessionMacKey.toHexString()}")
 
     t = XOR(rndA, rndB)
     t = aesEcbEncrypt(sessionMacKey, t)
 
-    Timber.d("IV0=${t.toHexString()}")
+    Log.d(TAG, "IV0=${t.toHexString()}")
 
     sessionSendIV = t
     sessionRecvIV = t

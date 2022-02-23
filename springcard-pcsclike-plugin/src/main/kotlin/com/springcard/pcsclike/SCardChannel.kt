@@ -1,11 +1,11 @@
 /*
- * Copyright (c) 2018-2018-2018 SpringCard - www.springcard.com
+ * Copyright (c)2022 SpringCard - www.springcard.com.com
  * All right reserved
  * This software is covered by the SpringCard SDK License Agreement - see LICENSE.txt
  */
 package com.springcard.pcsclike
 
-import com.springcard.pcsclike.communication.State
+import com.springcard.pcsclike.communication.*
 
 /**
  * Represents a channel You can get this object with a call to reader.cardConnect()

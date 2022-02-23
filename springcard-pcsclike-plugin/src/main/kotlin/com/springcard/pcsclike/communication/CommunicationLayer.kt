@@ -1,19 +1,16 @@
 /*
- * Copyright (c) 2018-2018-2018 SpringCard - www.springcard.com
+ * Copyright (c)2022 SpringCard - www.springcard.com.com
  * All right reserved
  * This software is covered by the SpringCard SDK License Agreement - see LICENSE.txt
  */
 package com.springcard.pcsclike.communication
 
 import android.content.Context
-import com.springcard.pcsclike.SCardError
-import com.springcard.pcsclike.SCardReader
-import com.springcard.pcsclike.SCardReaderList
-import com.springcard.pcsclike.ccid.CcidCommand
-import com.springcard.pcsclike.ccid.CcidResponse
+import android.util.Log
+import com.springcard.pcsclike.*
+import com.springcard.pcsclike.ccid.*
 import com.springcard.pcsclike.utils.toHexString
 import java.lang.Exception
-import timber.log.Timber
 
 internal enum class SubState {
   Idle,
@@ -24,6 +21,7 @@ internal enum class SubState {
 
 internal abstract class CommunicationLayer(protected var scardReaderList: SCardReaderList) {
 
+  private val TAG = this::class.java.simpleName
   protected abstract var lowLayer: LowLevelLayer
 
   private var creatingSubState: SubState = SubState.Idle
@@ -57,7 +55,7 @@ internal abstract class CommunicationLayer(protected var scardReaderList: SCardR
   internal fun writeCommand(ccidCommand: CcidCommand) {
     /* Update sqn, save it and cipher */
     val updatedCcidBuffer = scardReaderList.ccidHandler.updateCcidCommand(ccidCommand)
-    Timber.d("Writing ${ccidCommand.raw.toHexString()} in PC_to_RDR")
+    Log.d(TAG, "Writing ${ccidCommand.raw.toHexString()} in PC_to_RDR")
     lowLayer.write(updatedCcidBuffer.asList())
   }
 
@@ -91,7 +89,7 @@ internal abstract class CommunicationLayer(protected var scardReaderList: SCardR
               scardReaderList.slotsToConnect[0].index.toByte()))
     } else {
       creatingSubState = SubState.Idle
-      Timber.d("Everything is done -> post onCreated callback")
+      Log.d(TAG, "Everything is done -> post onCreated callback")
       scardReaderList.machineState.setNewState(State.Idle)
     }
   }
@@ -99,7 +97,7 @@ internal abstract class CommunicationLayer(protected var scardReaderList: SCardR
   fun onDisconnected() {
     when (scardReaderList.machineState.currentState) {
       State.Closed -> {
-        Timber.w("Impossible to close device if it's already closed")
+        Log.w(TAG, "Impossible to close device if it's already closed")
       }
       State.Idle, State.Sleeping -> {
         scardReaderList.enterExclusive()
@@ -121,7 +119,7 @@ internal abstract class CommunicationLayer(protected var scardReaderList: SCardR
         scardReaderList.machineState.setNewState(State.Closed)
       }
       else -> {
-        Timber.w("Impossible state: ${scardReaderList.machineState.currentState}")
+        Log.w(TAG, "Impossible state: ${scardReaderList.machineState.currentState}")
       }
     }
   }
@@ -155,19 +153,19 @@ internal abstract class CommunicationLayer(protected var scardReaderList: SCardR
       return
     }
 
-    Timber.d("Received ${ccidResponse.raw.toHexString()} in RDR_to_PC")
+    Log.d(TAG, "Received ${ccidResponse.raw.toHexString()} in RDR_to_PC")
 
     when (creatingSubState) {
       SubState.Idle -> interpretResponse(ccidResponse)
       SubState.Authenticate -> interpretResponseAuthenticate(ccidResponse)
       SubState.ReadingInfo -> interpretResponseInfo(ccidResponse)
       SubState.ConnectingToCards -> interpretResponseConnectingToCard(ccidResponse)
-      else -> Timber.w("Impossible SubState: $creatingSubState")
+      else -> Log.w(TAG, "Impossible SubState: $creatingSubState")
     }
   }
 
   fun onCommunicationError(error: SCardError) {
-    Timber.e("${error.code.name}: ${error.detail}")
+    Log.e(TAG, "${error.code.name}: ${error.detail}")
     scardReaderList.lastError = error
     scardReaderList.exitExclusive()
     disconnect()
@@ -199,13 +197,13 @@ internal abstract class CommunicationLayer(protected var scardReaderList: SCardR
           ccidResponse.code == CcidResponse.ResponseCode.RDR_To_PC_SlotStatus.value) {
         scardReaderList.readers[ccidResponse.slotNumber.toInt()].cardError = true
       }
-      Timber.d("Error, do not process CCID packet")
+      Log.d(TAG, "Error, do not process CCID packet")
       scardReaderList.machineState.setNewState(State.Idle)
       scardReaderList.postCallback { scardReaderList.callbacks.onReaderOrCardError(slot, error) }
       return
     }
 
-    Timber.d("Frame complete, length = ${ccidResponse.length}")
+    Log.d(TAG, "Frame complete, length = ${ccidResponse.length}")
     when {
       ccidResponse.code == CcidResponse.ResponseCode.RDR_To_PC_Escape.value ->
           when (scardReaderList.ccidHandler.commandSend) {
@@ -275,7 +273,7 @@ internal abstract class CommunicationLayer(protected var scardReaderList: SCardR
           when (scardReaderList.ccidHandler.commandSend) {
             CcidCommand.CommandCode.PC_To_RDR_GetSlotStatus -> {
               /* Do nothing */
-              Timber.d("Reader Status, Cool! ...but useless")
+              Log.d(TAG, "Reader Status, Cool! ...but useless")
 
               /* Update slot concerned */
               scardReaderList.ccidHandler.interpretSlotsStatusInCcidHeader(
@@ -344,7 +342,7 @@ internal abstract class CommunicationLayer(protected var scardReaderList: SCardR
     } else if (authenticateStep == 2) {
       if (scardReaderList.ccidHandler.ccidSecure.deviceRespStep3(ccidResponse.payload)) {
         scardReaderList.ccidHandler.authenticateOk = true
-        Timber.d("Authenticate succeed")
+        Log.d(TAG, "Authenticate succeed")
         onCreateFinished()
       } else {
         onCommunicationError(
@@ -423,7 +421,7 @@ internal abstract class CommunicationLayer(protected var scardReaderList: SCardR
                     .slice(1 until ccidResponse.payload.size)
                     .toByteArray()
                     .toString(charset("ASCII"))
-            Timber.d("Slot $slotIndex name : $slotName")
+            Log.d(TAG, "Slot $slotIndex name : $slotName")
             scardReaderList.readers[slotIndex].name = slotName
             scardReaderList.readers[slotIndex].index = slotIndex
 
@@ -474,8 +472,8 @@ internal abstract class CommunicationLayer(protected var scardReaderList: SCardR
         scardReaderList.ccidHandler.interpretSlotsErrorInCcidHeader(
             ccidResponse.slotError, ccidResponse.slotStatus, slot)
     if (error.code != SCardError.ErrorCodes.NO_ERROR) {
-      Timber.w("Error, do not process CCID packet")
-      Timber.w("Error: ${error.code.name}, ${error.detail}")
+      Log.w(TAG, "Error, do not process CCID packet")
+      Log.w(TAG, "Error: ${error.code.name}, ${error.detail}")
 
       /* Connect next card */
       if (scardReaderList.slotsToConnect.size > 0) {
@@ -483,19 +481,19 @@ internal abstract class CommunicationLayer(protected var scardReaderList: SCardR
             scardReaderList.ccidHandler.scardConnect(
                 scardReaderList.slotsToConnect[0].index.toByte()))
       } else {
-        Timber.d("ConnectingToCards succeed")
+        Log.d(TAG, "ConnectingToCards succeed")
         onCreateFinished()
       }
       return
     }
 
-    Timber.d("Frame complete, length = ${ccidResponse.length}")
+    Log.d(TAG, "Frame complete, length = ${ccidResponse.length}")
 
     if (ccidResponse.code == CcidResponse.ResponseCode.RDR_To_PC_DataBlock.value) {
       /* save ATR */
       slot.channel.atr = ccidResponse.payload
     } else {
-      Timber.w("Unexpected CCID response code: ${ccidResponse.code}")
+      Log.w(TAG, "Unexpected CCID response code: ${ccidResponse.code}")
     }
 
     /* Connect next card */
@@ -504,7 +502,7 @@ internal abstract class CommunicationLayer(protected var scardReaderList: SCardR
           scardReaderList.ccidHandler.scardConnect(
               scardReaderList.slotsToConnect[0].index.toByte()))
     } else {
-      Timber.d("ConnectingToCards succeed")
+      Log.d(TAG, "ConnectingToCards succeed")
       onCreateFinished()
     }
   }

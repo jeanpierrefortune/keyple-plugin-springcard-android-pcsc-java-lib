@@ -1,19 +1,22 @@
 /*
- * Copyright (c) 2018-2018-2018 SpringCard - www.springcard.com
+ * Copyright (c)2022 SpringCard - www.springcard.com.com
  * All right reserved
  * This software is covered by the SpringCard SDK License Agreement - see LICENSE.txt
  */
 package com.springcard.pcsclike.ccid
 
-import com.springcard.pcsclike.utils.bytes
+import android.util.Log
+import com.springcard.pcsclike.utils.*
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
 import kotlin.experimental.and
 import kotlin.experimental.inv
 import kotlin.experimental.or
-import timber.log.Timber
 
 internal abstract class CcidFrame {
+
+  private val TAG: String
+    get() = this::class.java.simpleName
 
   /* Array containing the whole data */
   /* initialize with header (10 first bytes) to zero */
@@ -70,7 +73,8 @@ internal abstract class CcidFrame {
       val expectedSize = buffer.int
 
       if (expectedSize != payload.size) {
-        Timber.w(
+        Log.w(
+            TAG,
             "Warning, Size specified ($expectedSize) does not match size of payload (${payload.size})")
         return HEADER_SIZE
       }

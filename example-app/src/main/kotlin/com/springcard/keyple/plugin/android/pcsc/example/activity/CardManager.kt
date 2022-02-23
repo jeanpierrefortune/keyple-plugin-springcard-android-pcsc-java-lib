@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 SpringCard - www.springcard.com
+ * Copyright (c)2022 SpringCard - www.springcard.com.com
  * All right reserved
  * This software is covered by the SpringCard SDK License Agreement - see LICENSE.txt
  */
@@ -17,6 +17,7 @@ import org.eclipse.keyple.card.calypso.CalypsoExtensionService
 import org.eclipse.keyple.core.service.KeyplePluginException
 import org.eclipse.keyple.core.service.ObservableReader
 import org.eclipse.keyple.core.service.Plugin
+import org.eclipse.keyple.core.service.Reader
 import org.eclipse.keyple.core.service.SmartCardServiceProvider
 import org.eclipse.keyple.core.service.resource.CardResourceProfileConfigurator
 import org.eclipse.keyple.core.service.resource.CardResourceService
@@ -25,7 +26,7 @@ import org.eclipse.keyple.core.service.resource.PluginsConfigurator
 import org.eclipse.keyple.core.util.ByteArrayUtil
 import timber.log.Timber
 
-class CalypsoTransaction {
+class CardManager {
   companion object {
     /**
      * Schedules a card selection targeting three applications:
@@ -194,7 +195,9 @@ class CalypsoTransaction {
               PluginsConfigurator.builder()
                   .addPluginWithMonitoring(
                       plugin,
-                      AbstractExampleActivity.ReaderConfigurator(),
+                      { reader: Reader ->
+                        Timber.e("Nothing to configure for reader '${reader.name}'")
+                      },
                       { pluginName: String, e: Throwable ->
                         Timber.e("An unexpected plugin error occurred: $pluginName: $e")
                       },

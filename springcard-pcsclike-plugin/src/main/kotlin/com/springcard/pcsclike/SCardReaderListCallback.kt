@@ -1,19 +1,21 @@
 /*
- * Copyright (c) 2018-2018-2018 SpringCard - www.springcard.com
+ * Copyright (c)2022 SpringCard - www.springcard.com.com
  * All right reserved
  * This software is covered by the SpringCard SDK License Agreement - see LICENSE.txt
  */
 package com.springcard.pcsclike
 
-import timber.log.Timber
+import android.util.Log
 
 /* This class call the methods provided by SCardReaderListCallback and overwritten by the user */
 internal class LoggedSCardReaderListCallback(private var callbacks: SCardReaderListCallback) :
     SCardReaderListCallback() {
 
+  private val TAG = this::class.java.simpleName
+
   /* TODO CRA: use it in AOP class*/
   private fun logMethodName(name: String?) {
-    if (name != null) Timber.d("<-- $name()") else Timber.d("<-- callback()")
+    if (name != null) Log.d(TAG, "<-- $name()") else Log.d(TAG, "<-- callback()")
   }
 
   /* Methods overwritten */

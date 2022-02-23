@@ -1,19 +1,14 @@
-/* **************************************************************************************
- * Copyright (c) 2018-2019 SpringCard - https://www.springcard.com/
- *
- * See the NOTICE file(s) distributed with this work for additional information
- * regarding copyright ownership.
- *
- * This program and the accompanying materials are made available under the terms of the
- * Eclipse Public License 2.0 which is available at http://www.eclipse.org/legal/epl-2.0
- *
- * SPDX-License-Identifier: EPL-2.0
- ************************************************************************************** */
+/**
+ * Copyright (c)2022 SpringCard - www.springcard.com.com
+ * All right reserved
+ * This software is covered by the SpringCard SDK License Agreement - see LICENSE.txt
+ */
+
 package com.springcard.pcsclike.utils
 
 import android.util.Log
-import timber.log.Timber
 import kotlin.experimental.xor
+
 
 private val HEX_CHARS = "0123456789ABCDEF".toCharArray()
 
@@ -39,6 +34,8 @@ fun ByteArray.toHexString(): String {
     return result.toString()
 }
 
+
+
 fun Collection<Byte>.toHexString(): String {
     return this.toByteArray().toHexString()
 }
@@ -56,6 +53,7 @@ fun MutableCollection<Byte>.toHexString(): String {
     return this.toByteArray().toHexString()
 }*/
 
+
 /**
  *  Rotate an array by one byte to the left
  */
@@ -68,6 +66,7 @@ fun ByteArray.RotateLeftOneByte(): ByteArray {
 
     return result
 }
+
 
 /**
  * Rotate an array by one byte to the right
@@ -89,8 +88,8 @@ fun XOR(buffer1: MutableList<Byte>, buffer2: MutableList<Byte>): MutableList<Byt
 
     val result = mutableListOf<Byte>()
 
-    if (buffer1.size != buffer2.size) {
-        Timber.d("Utils XOR: Buffers don't have the same size")
+    if(buffer1.size != buffer2.size) {
+        Log.d("Utils", "XOR: Buffers don't have the same size")
     }
 
     for (i in buffer1.indices) {
@@ -125,6 +124,7 @@ fun String.hexStringToByteArray(): ByteArray {
 internal val String.Empty: String
     get() = ""
 
+
 /**
  * Check is a string represent an hexadecimal value
  * (even length, digit and A-F chars)
@@ -153,8 +153,9 @@ internal fun Int.bytes(): ByteArray {
     val b = mutableListOf<Byte>(0, 0, 0, 0)
 
     for (i in 0 until 4) {
-        b[i] = (this shr (i * 8)).toByte()
+        b[i] = (this shr (i*8)).toByte()
     }
 
     return b.toByteArray()
 }
+
