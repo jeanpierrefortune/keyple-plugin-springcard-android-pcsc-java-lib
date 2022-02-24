@@ -16,15 +16,15 @@ plugins {
 val kotlinVersion: String by project
 val archivesBaseName: String by project
 android {
-    compileSdkVersion(29)
+    compileSdkVersion(31)
     buildToolsVersion("30.0.2")
 
     buildFeatures {
         viewBinding = true
     }
     defaultConfig {
-        minSdkVersion(21)
-        targetSdkVersion(29)
+        minSdkVersion(26)
+        targetSdkVersion(31)
         versionName(project.version.toString())
 
         testInstrumentationRunner("android.support.test.runner.AndroidJUnitRunner")
@@ -95,11 +95,12 @@ dependencies {
 
     //android
     implementation("androidx.legacy:legacy-support-v4:1.0.0")
-    implementation("androidx.appcompat:appcompat:1.1.0")
+    implementation("androidx.appcompat:appcompat:1.4.1")
+    implementation("androidx.activity:activity-ktx:1.4.0")
 
     //Coroutines
-    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.3.3")
-    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.3.3")
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.4.1")
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.4.1")
 
     //logging
     implementation("org.slf4j:slf4j-api:1.7.32")
@@ -107,10 +108,10 @@ dependencies {
     implementation("at.favre.lib:slf4j-timber:1.0.1") //SLF4J binding for Timber
 
     /** Test **/
-    testImplementation("androidx.test:core-ktx:1.3.0")
+    testImplementation("androidx.test:core-ktx:1.4.0")
     testImplementation("junit:junit:4.13.2")
-    testImplementation("io.mockk:mockk:1.9")
-    testImplementation("org.robolectric:robolectric:4.3.1")
+    testImplementation("io.mockk:mockk:1.10.0")
+    testImplementation("org.robolectric:robolectric:4.4")
 
     androidTestImplementation("com.android.support.test:runner:1.0.2")
     androidTestImplementation("com.android.support.test.espresso:espresso-core:3.0.2")

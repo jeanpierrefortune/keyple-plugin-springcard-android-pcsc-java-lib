@@ -32,6 +32,9 @@ import org.eclipse.keyple.core.service.SmartCardServiceProvider
 import org.eclipse.keyple.core.service.spi.PluginObserverSpi
 import timber.log.Timber
 
+/**
+ * Manages the initialization and observation of plugins and readers.
+ */
 internal class ReadersManager(private val activity: MainActivity) :
     DeviceScannerSpi, PluginObserverSpi, CardReaderObserverSpi {
 

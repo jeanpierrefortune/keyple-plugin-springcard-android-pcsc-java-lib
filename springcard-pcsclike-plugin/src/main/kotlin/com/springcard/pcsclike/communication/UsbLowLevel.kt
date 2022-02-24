@@ -138,7 +138,7 @@ internal class UsbLowLevel(
           }
         }
       } else {
-        Log.w(TAG, "Wrong interface class: ${usbInterface.interfaceClass.toUByte().toHexString()}")
+        Log.w(TAG, "Wrong interface class: ${usbInterface.interfaceClass.toByte().toHexString()}")
         break
       }
     }

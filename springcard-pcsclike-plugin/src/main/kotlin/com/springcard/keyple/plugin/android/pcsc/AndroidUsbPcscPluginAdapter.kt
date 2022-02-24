@@ -79,11 +79,11 @@ internal class AndroidUsbPcscPluginAdapter(context: Context) :
     usbAttachReceiver =
         object : BroadcastReceiver() {
           override fun onReceive(context: Context, intent: Intent) {
-            val usbDevice = intent.getParcelableExtra(UsbManager.EXTRA_DEVICE) as UsbDevice
+            val usbDevice:UsbDevice? = intent.getParcelableExtra(UsbManager.EXTRA_DEVICE)
 
             when {
               UsbManager.ACTION_USB_DEVICE_ATTACHED == intent.action -> {
-                if (addDevice(usbDevice) && stopOnFirstDeviceDiscovered) {
+                if (usbDevice != null && addDevice(usbDevice) && stopOnFirstDeviceDiscovered) {
                   // shorten timer
                   handler.removeCallbacks(notifyScanResults)
                   handler.postDelayed(notifyScanResults, 0)
@@ -92,13 +92,13 @@ internal class AndroidUsbPcscPluginAdapter(context: Context) :
                 }
               }
               UsbManager.ACTION_USB_DEVICE_DETACHED == intent.action -> {
-                usbDeviceList.remove(usbDevice.deviceId.toString())
+                usbDeviceList.remove(usbDevice!!.deviceId.toString())
               }
               ACTION_USB_PERMISSION == intent.action -> {
                 synchronized(this) {
                   if (intent.getBooleanExtra(UsbManager.EXTRA_PERMISSION_GRANTED, false)) {
                     Timber.d("Permission granted for device %s", usbDevice)
-                    SCardReaderList.create(context, usbDevice, scardCallbacks)
+                    SCardReaderList.create(context, usbDevice!!, scardCallbacks)
                   } else {
                     Timber.d("Permission denied for device %s", usbDevice)
                   }
@@ -157,7 +157,7 @@ internal class AndroidUsbPcscPluginAdapter(context: Context) :
    * @return A not empty String.
    */
   private fun getDeviceIdsAsString(vid: Int, pid: Int): String {
-    return "USB\\VID=${intTo4hex(vid)}&PID=${intTo4hex(vid)}"
+    return "USB\\VID=${intTo4hex(vid)}&PID=${intTo4hex(pid)}"
   }
 
   /**

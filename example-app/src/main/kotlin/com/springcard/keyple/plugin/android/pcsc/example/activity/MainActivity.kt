@@ -5,8 +5,12 @@
  */
 package com.springcard.keyple.plugin.android.pcsc.example.activity
 
+import android.Manifest
 import android.app.AlertDialog
+import android.bluetooth.BluetoothAdapter
+import android.content.Intent
 import android.content.pm.PackageManager
+import android.os.Build
 import android.os.Bundle
 import android.view.WindowManager
 import android.widget.Toast
@@ -139,6 +143,7 @@ class MainActivity : AppCompatActivity(), EventNotifierSpi {
       permissions: Array<out String>,
       grantResults: IntArray
   ) {
+    super.onRequestPermissionsResult(requestCode, permissions, grantResults)
     when (requestCode) {
       PermissionHelper.MY_PERMISSIONS_REQUEST_ALL -> {
         val storagePermissionGranted =
@@ -169,4 +174,34 @@ class MainActivity : AppCompatActivity(), EventNotifierSpi {
   override fun notifyResult(result: String) {
     addResultEvent(result)
   }
+
+//  fun checkBluetooth() {
+//    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+////      val PERMISSION_REQUEST_FINE_LOCATION = 5
+////      /* Android Permission check */
+////      /* As of Android M (6.0) and above, location permission is required for the app          to get BLE scan results.                                  */
+////      /* The main motivation behind having to explicitly require the users to grant          this permission is to protect users’ privacy.                */
+////      /* A BLE scan can often unintentionally reveal the user’s location to          unscrupulous app developers who scan for specific BLE beacons,       */
+////      /* or some BLE device may advertise location-specific information. Before          Android 10, ACCESS_COARSE_LOCATION can be used to gain access   */
+////      /* to BLE scan results, but we recommend using ACCESS_FINE_LOCATION instead          since it works for all versions of Android.                   */
+////      if (activity.checkSelfPermission(Manifest.permission.ACCESS_COARSE_LOCATION) !=
+////        PackageManager.PERMISSION_GRANTED) {
+////        activity.requestPermissions(
+////          arrayOf(Manifest.permission.ACCESS_FINE_LOCATION), PERMISSION_REQUEST_FINE_LOCATION)
+////      }
+//      if(!PermissionHelper.checkPermission(this, arrayOf(Manifest.permission.ACCESS_COARSE_LOCATION))) {
+//          PermissionHelper.checkPermission(this, arrayOf(Manifest.permission.ACCESS_FINE_LOCATION))
+//        }
+//    }
+//
+//    /* Set up BLE */
+//    val REQUEST_ENABLE_BT = 6
+//    /* Ensures Bluetooth is available on the device and it is enabled. If not, */
+//    /* displays a dialog requesting user permission to enable Bluetooth. */
+//
+//    bluetoothAdapter?.takeIf { it.isDisabled }?.apply {
+//      val enableBtIntent = Intent(BluetoothAdapter.ACTION_REQUEST_ENABLE)
+//      this.startActivityForResult(enableBtIntent, REQUEST_ENABLE_BT)
+//    }
+//  }
 }

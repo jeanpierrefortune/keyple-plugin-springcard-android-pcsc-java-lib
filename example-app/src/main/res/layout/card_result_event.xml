@@ -7,7 +7,7 @@
     android:layout_marginEnd="64dp">
 
     <androidx.cardview.widget.CardView
-        android:layout_width="wrap_content"
+        android:layout_width="0dp"
         android:layout_height="wrap_content"
         android:layout_margin="2dp"
         android:layout_marginTop="4dp"
@@ -27,5 +27,6 @@
             android:layout_height="match_parent"
             android:textAlignment="textStart"
             android:textColor="@color/textColorsecondary"/>
+            tools:text="Result" />
     </androidx.cardview.widget.CardView>
 </androidx.constraintlayout.widget.ConstraintLayout>

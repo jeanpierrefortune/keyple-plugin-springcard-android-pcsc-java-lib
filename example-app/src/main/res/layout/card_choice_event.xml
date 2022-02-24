@@ -31,7 +31,7 @@
             android:textAlignment="center"
             android:textSize="18sp"
             android:textColor="@color/textColorPrimary"
-            tools:text="Ceci est un test" />
+            tools:text="Choice" />
 
         <RadioGroup
             android:id="@+id/choiceRadioGroup"

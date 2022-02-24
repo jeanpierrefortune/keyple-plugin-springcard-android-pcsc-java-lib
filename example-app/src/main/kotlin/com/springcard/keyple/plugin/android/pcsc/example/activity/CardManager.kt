@@ -6,10 +6,6 @@
 package com.springcard.keyple.plugin.android.pcsc.example.activity
 
 import com.springcard.keyple.plugin.android.pcsc.example.util.CalypsoClassicInfo
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.GlobalScope
-import kotlinx.coroutines.launch
 import org.calypsonet.terminal.calypso.WriteAccessLevel
 import org.calypsonet.terminal.calypso.card.CalypsoCard
 import org.calypsonet.terminal.calypso.sam.CalypsoSam
@@ -90,7 +86,6 @@ internal class CardManager(private val activity: MainActivity) {
     timestamp = System.currentTimeMillis()
     activity.notifyResult("New ReaderEvent received : ${readerEvent?.type?.name}")
 
-    CoroutineScope(Dispatchers.Main).launch {
       when (readerEvent?.type) {
         CardReaderEvent.Type.CARD_MATCHED -> {
           val selectionsResult =
@@ -107,7 +102,6 @@ internal class CardManager(private val activity: MainActivity) {
                                 efEnvironmentHolder.data.content
                             )
                         }")
-          GlobalScope.launch(Dispatchers.IO) {
             try {
               runCardTransaction(cardReader, calypsoCard, cardSecuritySetting)
               val counter =
@@ -127,7 +121,6 @@ internal class CardManager(private val activity: MainActivity) {
               Timber.e(e)
               activity.notifyResult("Exception: ${e.message}")
             }
-          }
           cardReader.finalizeCardProcessing()
         }
         CardReaderEvent.Type.CARD_INSERTED -> {
@@ -142,7 +135,6 @@ internal class CardManager(private val activity: MainActivity) {
           // Do nothing
         }
       }
-    }
   }
 
   private fun runCardTransaction(

@@ -15,7 +15,7 @@ plugins {
 val kotlinVersion: String by project
 val archivesBaseName: String by project
 android {
-    compileSdkVersion(29)
+    compileSdkVersion(31)
     buildToolsVersion("30.0.2")
 
     signingConfigs {
@@ -32,8 +32,8 @@ android {
 
     defaultConfig {
         applicationId("com.springcard.keyple.plugin.android.pcsc.example")
-        minSdkVersion(21)
-        targetSdkVersion(29)
+        minSdkVersion(26)
+        targetSdkVersion(31)
         versionName(project.version.toString())
         versionCode(3)
         testInstrumentationRunner("android.support.test.runner.AndroidJUnitRunner")
