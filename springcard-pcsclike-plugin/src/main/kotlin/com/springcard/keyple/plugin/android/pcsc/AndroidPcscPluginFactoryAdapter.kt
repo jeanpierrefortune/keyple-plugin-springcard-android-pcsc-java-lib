@@ -11,6 +11,7 @@ import org.eclipse.keyple.core.plugin.PluginApiProperties
 import org.eclipse.keyple.core.plugin.spi.PluginFactorySpi
 import org.eclipse.keyple.core.plugin.spi.PluginSpi
 
+/** Implementation of the AndroidPcscPluginFactory */
 internal class AndroidPcscPluginFactoryAdapter
 internal constructor(val type: AndroidPcscPluginFactory.Type.Link, val context: Context) :
     AndroidPcscPluginFactory, PluginFactorySpi {

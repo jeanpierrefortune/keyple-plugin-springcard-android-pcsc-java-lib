@@ -30,7 +30,6 @@ internal class AndroidBlePcscPluginAdapter(context: Context) :
   private var bluetoothDeviceInfoMap: MutableMap<String, DeviceInfo> = mutableMapOf()
   private lateinit var bluetoothScanner: BluetoothLeScanner
   private lateinit var deviceScannerSpi: DeviceScannerSpi
-  private var isContinuesScan: Boolean = false
   private var scanThread: Thread? = null
   private var handler: Handler = Handler(Looper.getMainLooper())
   private var stopOnFirstDeviceDiscovered: Boolean = false
@@ -39,6 +38,7 @@ internal class AndroidBlePcscPluginAdapter(context: Context) :
     bluetoothManager.adapter
   }
 
+  /** Specific scanning for BLE devices. */
   override fun scanDevices(
       timeout: Long,
       stopOnFirstDeviceDiscovered: Boolean,
@@ -47,9 +47,13 @@ internal class AndroidBlePcscPluginAdapter(context: Context) :
     this.stopOnFirstDeviceDiscovered = stopOnFirstDeviceDiscovered
     this.deviceScannerSpi = deviceScannerSpi
     bluetoothScanner = this.bluetoothAdapter!!.bluetoothLeScanner
-    scanBleDevices(false, timeout * 1000)
+    scanBleDevices(timeout * 1000)
   }
 
+  /**
+   * Specific BLE device connection
+   * @param identifier The BLE device identifier
+   */
   override fun connectToDevice(identifier: String) {
     Timber.d("Connection to BLE device: %s", identifier)
     val bluetoothDevice = bluetoothDeviceList[identifier]
@@ -60,13 +64,15 @@ internal class AndroidBlePcscPluginAdapter(context: Context) :
     }
   }
 
+  /**
+   * Initiates the BLE scanning with the dedicated Android API.
+   *
+   * Provides filters to identify the expected BLE services UUID.
+   */
   private fun scan() {
     /* Scan settings */
     val settings = ScanSettings.Builder()
     settings.setScanMode(ScanSettings.SCAN_MODE_LOW_LATENCY)
-    // if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-    //  settings.setCallbackType(ScanSettings.CALLBACK_TYPE_MATCH_LOST)
-    // }
     val settingsBuilt = settings.build()
 
     /* Filter for SpringCard service */
@@ -93,25 +99,34 @@ internal class AndroidBlePcscPluginAdapter(context: Context) :
     } catch (e: Exception) {
       Timber.e(e)
     }
-
-    bluetoothScanner.startScan(scanFilters, settingsBuilt, leScanCallback)
+    try {
+      bluetoothScanner.startScan(scanFilters, settingsBuilt, leScanCallback)
+    } catch (e: SecurityException) {
+      Timber.e(e, "Unexpected permission exception.")
+    }
     Timber.d("BLE scanning started...")
   }
 
+  /** BluetoothScanner callback */
   private val leScanCallback =
       object : ScanCallback() {
         override fun onScanResult(callbackType: Int, result: ScanResult) {
+          var deviceName: String
+          try {
+            deviceName = result.device.name
+          } catch (e: SecurityException) {
+            deviceName = ""
+            Timber.e(e, "Unexpected permission exception")
+          }
           val bleDeviceInfo: DeviceInfo =
               if (result.scanRecord!!.deviceName != null) {
                 DeviceInfo(
                     result.device.address,
                     "${result.scanRecord!!.deviceName!!} ${result.rssi}",
-                    result.device.name)
+                    deviceName)
               } else {
                 DeviceInfo(
-                    result.device.address,
-                    "${result.device.address} ${result.rssi}",
-                    result.device.name)
+                    result.device.address, "${result.device.address} ${result.rssi}", deviceName)
               }
           if (callbackType == ScanSettings.CALLBACK_TYPE_ALL_MATCHES) {
             if (!bluetoothDeviceInfoMap.containsKey(bleDeviceInfo.identifier)) {
@@ -133,14 +148,9 @@ internal class AndroidBlePcscPluginAdapter(context: Context) :
         }
       }
 
-  /**
-   * TODO update this Scan The BLE Device Check the available BLE devices in the Surrounding If the
-   * device is Already scanning then stop Scanning Else start Scanning and check 10 seconds Send the
-   * available devices as a callback to the system Finish Scanning after 10 Seconds
-   */
-  private fun scanBleDevices(isContinuesScan: Boolean, scanDelay: Long) {
+  /** Launches the BLE scanning in a separated thread and stops it after the provided delay */
+  private fun scanBleDevices(scanDelay: Long) {
     try {
-      this.isContinuesScan = isContinuesScan
 
       if (scanThread != null) {
         Timber.d("BLE scan Thread already running.")
@@ -150,25 +160,25 @@ internal class AndroidBlePcscPluginAdapter(context: Context) :
       scanThread = Thread(scanRunnable)
       scanThread!!.start()
 
-      /**
-       * Stop Scanning after a Period of Time Set a 10 Sec delay time and Stop Scanning collect all
-       * the available devices in the 10 Second
-       */
-      if (!isContinuesScan) {
-        handler.postDelayed(notifyScanResults, scanDelay) // Delay Period
-      }
+      handler.postDelayed(notifyScanResults, scanDelay) // Delay Period
     } catch (e: Exception) {
       Timber.e(e)
     }
   }
 
+  /** Body of the thread dedicated to the scan */
   private val scanRunnable = Runnable { scan() }
 
+  /** Device discovery notifier */
   private val notifyScanResults =
       Runnable {
         Timber.d(
             "Notifying scan results (${bluetoothDeviceInfoMap.size} device(s) found), stop BLE scanning.")
-        bluetoothScanner.stopScan(object : ScanCallback() {})
+        try {
+          bluetoothScanner.stopScan(object : ScanCallback() {})
+        } catch (e: SecurityException) {
+          Timber.e(e, "Unexpected permission exception.")
+        }
         deviceScannerSpi.onDeviceDiscovered(bluetoothDeviceInfoMap.values)
       }
 }

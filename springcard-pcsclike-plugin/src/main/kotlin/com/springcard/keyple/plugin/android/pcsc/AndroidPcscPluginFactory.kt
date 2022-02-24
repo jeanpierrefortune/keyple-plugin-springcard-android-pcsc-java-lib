@@ -7,6 +7,11 @@ package com.springcard.keyple.plugin.android.pcsc
 
 import org.eclipse.keyple.core.common.KeyplePluginExtensionFactory
 
+/**
+ * Factory of Android Pcsc plugin.
+ *
+ * @since 1.0.0
+ */
 interface AndroidPcscPluginFactory : KeyplePluginExtensionFactory {
   companion object Type {
     enum class Link {

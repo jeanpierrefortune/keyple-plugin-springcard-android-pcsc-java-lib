@@ -13,7 +13,6 @@ import androidx.recyclerview.widget.RecyclerView
 import com.springcard.keyple.plugin.android.pcsc.example.R
 import com.springcard.keyple.plugin.android.pcsc.example.model.ChoiceEventModel
 import com.springcard.keyple.plugin.android.pcsc.example.model.EventModel
-import com.springcard.keyple.plugin.android.pcsc.example.util.getColorResource
 import kotlinx.android.synthetic.main.card_action_event.view.cardActionTextView
 import kotlinx.android.synthetic.main.card_choice_event.view.choiceRadioGroup
 
@@ -69,7 +68,7 @@ class EventAdapter(private val events: ArrayList<EventModel>) :
           button.text = choice
           button.id = index
           button.setOnClickListener { event.callback(choice) }
-          button.setTextColor(context.getColorResource(R.color.textColorPrimary))
+          button.setTextColor(context.getColor(R.color.textColorPrimary))
           choiceRadioGroup.addView(button)
         }
       }

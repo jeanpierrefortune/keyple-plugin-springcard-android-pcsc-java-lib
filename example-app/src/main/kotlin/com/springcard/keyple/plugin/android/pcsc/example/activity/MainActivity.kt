@@ -8,12 +8,14 @@ package com.springcard.keyple.plugin.android.pcsc.example.activity
 import android.Manifest
 import android.app.AlertDialog
 import android.bluetooth.BluetoothAdapter
+import android.bluetooth.BluetoothManager
+import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
-import android.os.Build
 import android.os.Bundle
 import android.view.WindowManager
 import android.widget.Toast
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.view.GravityCompat
 import androidx.recyclerview.widget.LinearLayoutManager
@@ -41,6 +43,28 @@ class MainActivity : AppCompatActivity(), EventNotifierSpi {
   private val readerManager: ReadersManager = ReadersManager(this)
   private val areReadersInitialized = AtomicBoolean(false)
 
+  private var readerDetectionPending = false
+  private val BLE_PERMISSIONS_REQUEST: Int = 1000
+
+  private val bluetoothAdapter: BluetoothAdapter? by lazy(LazyThreadSafetyMode.NONE) {
+    val bluetoothManager = getSystemService(Context.BLUETOOTH_SERVICE) as BluetoothManager
+    bluetoothManager.adapter
+  }
+  private val BluetoothAdapter.isDisabled: Boolean
+    get() = !isEnabled
+
+  var requestBluetooth =
+      registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
+        if (result.resultCode == RESULT_OK) {
+          // granted
+          Timber.d("Bluetooth enabled")
+          launchBle()
+        } else {
+          // deny
+          Timber.d("Bluetooth disabled")
+        }
+      }
+
   override fun onCreate(savedInstanceState: Bundle?) {
     super.onCreate(savedInstanceState)
     setContentView(R.layout.activity_main)
@@ -54,6 +78,79 @@ class MainActivity : AppCompatActivity(), EventNotifierSpi {
     eventRecyclerView.layoutManager = layoutManager
     eventRecyclerView.adapter = adapter
     window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+  }
+
+  /** Called when the activity (screen) is first displayed or resumed from background */
+  override fun onResume() {
+    super.onResume()
+    if (!readerDetectionPending) {
+      // Check whether readers are already initialized (return from background) or not (first
+      // launch)
+      if (!areReadersInitialized.get()) {
+        // we need to initialize the readers
+        val builder = AlertDialog.Builder(this)
+        builder.setTitle("Interface selection")
+        builder.setMessage("Please choose the type of interface")
+
+        builder.setPositiveButton("USB") { dialog, which ->
+          Toast.makeText(applicationContext, "USB", Toast.LENGTH_SHORT).show()
+          launchUsb()
+        }
+
+        builder.setNegativeButton("BLE") { dialog, which ->
+          Toast.makeText(applicationContext, "BLE", Toast.LENGTH_SHORT).show()
+          checkPermissionAndLaunchBle()
+        }
+        builder.show()
+      } else {
+        // the readers are already initialized
+        addActionEvent("Start card detection")
+        readerManager.startCardDetection()
+      }
+    } else {
+      // 1st resume after activation, just reset the flag
+      readerDetectionPending = false
+    }
+  }
+
+  /** Called when the activity (screen) is destroyed or put in background */
+  override fun onPause() {
+    if (areReadersInitialized.get()) {
+      addActionEvent("Stopping card detection")
+      readerManager.stopCardDetection()
+    }
+    super.onPause()
+  }
+
+  /** Called when the activity (screen) is destroyed */
+  override fun onDestroy() {
+    readerManager.cleanUp()
+    super.onDestroy()
+  }
+
+  override fun onBackPressed() {
+    if (drawerLayout.isDrawerOpen(GravityCompat.START)) {
+      drawerLayout.closeDrawer(GravityCompat.START)
+    } else {
+      super.onBackPressed()
+    }
+  }
+
+  override fun onReaderReady() {
+    readerDetectionPending = false
+    areReadersInitialized.set(true)
+  }
+
+  override fun onHeader(header: String) {
+    addHeaderEvent(header)
+  }
+
+  override fun onAction(action: String) {
+    addActionEvent(action)
+  }
+
+  override fun onResult(result: String) {
+    addResultEvent(result)
   }
 
   private fun clearEvents() {
@@ -87,54 +184,28 @@ class MainActivity : AppCompatActivity(), EventNotifierSpi {
     }
   }
 
-  /** Called when the activity (screen) is first displayed or resumed from background */
-  override fun onResume() {
-    super.onResume()
-
-    // Check whether readers are already initialized (return from background) or not (first launch)
-    if (!areReadersInitialized.get()) {
-      val builder = AlertDialog.Builder(this)
-      builder.setTitle("Interface selection")
-      builder.setMessage("Please choose the type of interface")
-
-      builder.setPositiveButton("USB") { dialog, which ->
-        Toast.makeText(applicationContext, "USB", Toast.LENGTH_SHORT).show()
-        addActionEvent("Waiting for USB reader...")
-        areReadersInitialized.set(readerManager.initReaders(AndroidPcscPluginFactory.Type.Link.USB))
-      }
-
-      builder.setNegativeButton("BLE") { dialog, which ->
-        Toast.makeText(applicationContext, "BLE", Toast.LENGTH_SHORT).show()
-        addActionEvent("Waiting for BLE reader...")
-        areReadersInitialized.set(readerManager.initReaders(AndroidPcscPluginFactory.Type.Link.BLE))
-      }
-      builder.show()
-    } else {
-      addActionEvent("Start card detection")
-      readerManager.startCardDetection()
+  private fun launchUsb() {
+    addActionEvent("Starting in USB mode...")
+    readerDetectionPending = true
+    if (!readerManager.initReaders(AndroidPcscPluginFactory.Type.Link.USB)) {
+      addActionEvent("USB Reader initialization error.")
     }
   }
 
-  /** Called when the activity (screen) is destroyed or put in background */
-  override fun onPause() {
-    if (areReadersInitialized.get()) {
-      addActionEvent("Stopping card detection")
-      readerManager.stopCardDetection()
+  private fun checkPermissionAndLaunchBle() {
+    addActionEvent("Starting in BLE mode...")
+    readerDetectionPending = true
+    packageManager.takeIf { !it.hasSystemFeature(PackageManager.FEATURE_BLUETOOTH_LE) }?.also {
+      Toast.makeText(this, R.string.ble_not_supported, Toast.LENGTH_SHORT).show()
+      finish()
     }
-    super.onPause()
-  }
-
-  /** Called when the activity (screen) is destroyed */
-  override fun onDestroy() {
-    readerManager.cleanUp()
-    super.onDestroy()
-  }
-
-  override fun onBackPressed() {
-    if (drawerLayout.isDrawerOpen(GravityCompat.START)) {
-      drawerLayout.closeDrawer(GravityCompat.START)
+    if (PermissionHelper.checkPermission(
+        this, arrayOf(Manifest.permission.ACCESS_FINE_LOCATION), BLE_PERMISSIONS_REQUEST)) {
+      Timber.i("BLE permission %s is already granted", Manifest.permission.ACCESS_FINE_LOCATION)
+      launchBle()
     } else {
-      super.onBackPressed()
+      addActionEvent("Request ACCESS_FINE_LOCATION permission.")
+      Timber.i("BLE permission %s is requested", Manifest.permission.ACCESS_FINE_LOCATION)
     }
   }
 
@@ -145,10 +216,12 @@ class MainActivity : AppCompatActivity(), EventNotifierSpi {
   ) {
     super.onRequestPermissionsResult(requestCode, permissions, grantResults)
     when (requestCode) {
-      PermissionHelper.MY_PERMISSIONS_REQUEST_ALL -> {
-        val storagePermissionGranted =
+      BLE_PERMISSIONS_REQUEST -> {
+        val permissionGranted =
             grantResults.isNotEmpty() && grantResults[0] == PackageManager.PERMISSION_GRANTED
-        if (!storagePermissionGranted) {
+        if (permissionGranted) {
+          launchBle()
+        } else {
           PermissionDeniedDialog().apply {
             show(supportFragmentManager, PermissionDeniedDialog::class.java.simpleName)
           }
@@ -163,45 +236,21 @@ class MainActivity : AppCompatActivity(), EventNotifierSpi {
     }
   }
 
-  override fun notifyHeader(header: String) {
-    addHeaderEvent(header)
+  private fun launchBle() {
+    if (bluetoothAdapter?.isDisabled == true) {
+      // when Bluetooth is disabled we first request the user to enable it.
+      // the actual launch of the reader scanning will be delayed until the activation confirmation
+      // is received
+      Timber.i("Bluetooth adapter is disabled.")
+      val enableBluetoothIntent = Intent(BluetoothAdapter.ACTION_REQUEST_ENABLE)
+      addActionEvent("Request Bluetooth activation")
+      requestBluetooth.launch(enableBluetoothIntent)
+    } else {
+      // when Bluetooth is a enabled we start immediately the scanning of the readers
+      Timber.i("Bluetooth adapter is enabled.")
+      if (!readerManager.initReaders(AndroidPcscPluginFactory.Type.Link.BLE)) {
+        addActionEvent("BLE Reader initialization error.")
+      }
+    }
   }
-
-  override fun notifyAction(action: String) {
-    addActionEvent(action)
-  }
-
-  override fun notifyResult(result: String) {
-    addResultEvent(result)
-  }
-
-//  fun checkBluetooth() {
-//    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-////      val PERMISSION_REQUEST_FINE_LOCATION = 5
-////      /* Android Permission check */
-////      /* As of Android M (6.0) and above, location permission is required for the app          to get BLE scan results.                                  */
-////      /* The main motivation behind having to explicitly require the users to grant          this permission is to protect users’ privacy.                */
-////      /* A BLE scan can often unintentionally reveal the user’s location to          unscrupulous app developers who scan for specific BLE beacons,       */
-////      /* or some BLE device may advertise location-specific information. Before          Android 10, ACCESS_COARSE_LOCATION can be used to gain access   */
-////      /* to BLE scan results, but we recommend using ACCESS_FINE_LOCATION instead          since it works for all versions of Android.                   */
-////      if (activity.checkSelfPermission(Manifest.permission.ACCESS_COARSE_LOCATION) !=
-////        PackageManager.PERMISSION_GRANTED) {
-////        activity.requestPermissions(
-////          arrayOf(Manifest.permission.ACCESS_FINE_LOCATION), PERMISSION_REQUEST_FINE_LOCATION)
-////      }
-//      if(!PermissionHelper.checkPermission(this, arrayOf(Manifest.permission.ACCESS_COARSE_LOCATION))) {
-//          PermissionHelper.checkPermission(this, arrayOf(Manifest.permission.ACCESS_FINE_LOCATION))
-//        }
-//    }
-//
-//    /* Set up BLE */
-//    val REQUEST_ENABLE_BT = 6
-//    /* Ensures Bluetooth is available on the device and it is enabled. If not, */
-//    /* displays a dialog requesting user permission to enable Bluetooth. */
-//
-//    bluetoothAdapter?.takeIf { it.isDisabled }?.apply {
-//      val enableBtIntent = Intent(BluetoothAdapter.ACTION_REQUEST_ENABLE)
-//      this.startActivityForResult(enableBtIntent, REQUEST_ENABLE_BT)
-//    }
-//  }
 }

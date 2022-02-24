@@ -25,7 +25,7 @@ internal abstract class AbstractAndroidPcscPluginAdapter(var context: Context) :
   private val WAIT_RESPONSE_TIMEOUT: Long = 5000
   private val MONITORING_CYCLE_DURATION_MS = 1000
 
-  protected lateinit var readerList: SCardReaderList
+  protected var readerList: SCardReaderList? = null
   private var sCardReaders: MutableMap<String, SCardReader> = mutableMapOf()
   private val readerSpis: MutableMap<String, AndroidPcscReaderAdapter> = mutableMapOf()
   private val waitControlResponse = ConditionVariable()
@@ -70,13 +70,13 @@ internal abstract class AbstractAndroidPcscPluginAdapter(var context: Context) :
   }
 
   override fun onUnregister() {
-    readerList.close()
+    readerList?.close()
   }
 
   override fun transmitControl(dataIn: ByteArray?): ByteArray {
     if (dataIn != null && sCardReaders.isNotEmpty()) {
       // use the reader list to transmit controls
-      readerList.control(dataIn)
+      readerList?.control(dataIn)
       waitControlResponse.block(WAIT_RESPONSE_TIMEOUT)
       waitControlResponse.close()
       return controlResponse

@@ -6,12 +6,14 @@
 package com.springcard.keyple.plugin.android.pcsc.example.activity
 
 /**
- * Bridges the gap between logic processing and the graphical interface to display various kinds of messages.
+ * Bridges the logic processing and the graphical interface to display various kinds of messages.
  */
 internal interface EventNotifierSpi {
-  fun notifyHeader(header: String)
+  fun onReaderReady()
 
-  fun notifyAction(action: String)
+  fun onHeader(header: String)
 
-  fun notifyResult(result: String)
+  fun onAction(action: String)
+
+  fun onResult(result: String)
 }

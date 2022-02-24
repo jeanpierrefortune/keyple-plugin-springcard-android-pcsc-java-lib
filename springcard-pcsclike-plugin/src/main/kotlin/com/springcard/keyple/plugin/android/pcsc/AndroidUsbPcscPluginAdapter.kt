@@ -79,8 +79,7 @@ internal class AndroidUsbPcscPluginAdapter(context: Context) :
     usbAttachReceiver =
         object : BroadcastReceiver() {
           override fun onReceive(context: Context, intent: Intent) {
-            val usbDevice:UsbDevice? = intent.getParcelableExtra(UsbManager.EXTRA_DEVICE)
-
+            val usbDevice: UsbDevice? = intent.getParcelableExtra(UsbManager.EXTRA_DEVICE)
             when {
               UsbManager.ACTION_USB_DEVICE_ATTACHED == intent.action -> {
                 if (usbDevice != null && addDevice(usbDevice) && stopOnFirstDeviceDiscovered) {
@@ -112,14 +111,22 @@ internal class AndroidUsbPcscPluginAdapter(context: Context) :
     context.registerReceiver(usbAttachReceiver, IntentFilter(ACTION_USB_PERMISSION))
   }
 
+  /**
+   * Specific USB device connection
+   * @param identifier The USB device identifier
+   */
   override fun connectToDevice(identifier: String) {
     Timber.d("Connection to USB device: %s", identifier)
     val usbDevice = usbDeviceList[identifier]
     if (usbDevice != null) {
-      if (!usbManager.hasPermission(usbDevice)) {
-        usbManager.requestPermission(usbDevice, permissionIntent)
-      } else {
+      if (usbManager.hasPermission(usbDevice)) {
+        // permission is already granted, let's create the SCardReaderList
         SCardReaderList.create(context, usbDevice, scardCallbacks)
+      } else {
+        // request permission
+        // the creation of the SCardReaderList is postponed until the confirmation of the grant is
+        // received.
+        usbManager.requestPermission(usbDevice, permissionIntent)
       }
     } else {
       throw IllegalStateException("USB device with identifier $identifier not found")
@@ -168,12 +175,12 @@ internal class AndroidUsbPcscPluginAdapter(context: Context) :
     return value.toString(16).toUpperCase().padStart(2, '0')
   }
 
+  /** Device discovery notifier */
   private val notifyScanResults =
       Runnable {
         Timber.d(
             "Notifying USB scan results (%d device(s) found), stop USB scanning.",
             usbDeviceInfoMap.size)
-        context.unregisterReceiver(usbAttachReceiver)
         deviceScannerSpi.onDeviceDiscovered(usbDeviceInfoMap.values)
       }
 }

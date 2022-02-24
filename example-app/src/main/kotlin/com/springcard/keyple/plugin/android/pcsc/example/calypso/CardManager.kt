@@ -3,9 +3,9 @@
  * All right reserved
  * This software is covered by the SpringCard SDK License Agreement - see LICENSE.txt
  */
-package com.springcard.keyple.plugin.android.pcsc.example.activity
+package com.springcard.keyple.plugin.android.pcsc.example.calypso
 
-import com.springcard.keyple.plugin.android.pcsc.example.util.CalypsoClassicInfo
+import com.springcard.keyple.plugin.android.pcsc.example.activity.MainActivity
 import org.calypsonet.terminal.calypso.WriteAccessLevel
 import org.calypsonet.terminal.calypso.card.CalypsoCard
 import org.calypsonet.terminal.calypso.sam.CalypsoSam
@@ -27,17 +27,25 @@ import org.eclipse.keyple.core.service.resource.PluginsConfigurator
 import org.eclipse.keyple.core.util.ByteArrayUtil
 import timber.log.Timber
 
+/**
+ * Manages card selection and demo transactions (with and without security depending on the presence
+ * of a SAM).
+ */
 internal class CardManager(private val activity: MainActivity) {
   private var cardSecuritySetting: CardSecuritySetting? = null
   private lateinit var cardSelectionManager: CardSelectionManager
   private lateinit var cardReader: ObservableReader
   private var timestamp: Long = 0
+
   /**
    * Schedules a card selection targeting three applications:
-   * - Keyple demo kit card, AID = 315449432e49434131
-   * - Navigo B prime card, AID = 315449432E494341
-   * - Navigo B card, AID = A0000004040125090101 In all three cases, the environment file is read as
-   * soon as the application is selected.
+   * - Keyple demo kit card,
+   * - Navigo B prime card,
+   * - Navigo B card.
+   *
+   * In all three cases, the environment file is read as soon as the application is selected.
+   *
+   * Unknown cards are notified (NotificationMode.ALWAYS) with the CARD_INSERTED event.
    * @param cardReader The card reader.
    */
   fun initiateScheduledCardSelection(cardReader: CardReader) {
@@ -51,23 +59,20 @@ internal class CardManager(private val activity: MainActivity) {
       cardSelectionManager.prepareSelection(
           calypsoCardExtensionProvider
               .createCardSelection()
-              .filterByDfName(CalypsoClassicInfo.AID)
-              .prepareReadRecord(
-                  CalypsoClassicInfo.SFI_EnvironmentAndHolder, CalypsoClassicInfo.RECORD_NUMBER_1))
+              .filterByDfName(CardInfo.KEYPLE_KIT_AID)
+              .prepareReadRecord(CardInfo.SFI_EnvironmentAndHolder, CardInfo.RECORD_NUMBER_1))
 
       cardSelectionManager.prepareSelection(
           calypsoCardExtensionProvider
               .createCardSelection()
-              .filterByDfName("315449432E494341")
-              .prepareReadRecord(
-                  CalypsoClassicInfo.SFI_EnvironmentAndHolder, CalypsoClassicInfo.RECORD_NUMBER_1))
+              .filterByDfName(CardInfo.NAVIGO_B_AID)
+              .prepareReadRecord(CardInfo.SFI_EnvironmentAndHolder, CardInfo.RECORD_NUMBER_1))
 
       cardSelectionManager.prepareSelection(
           calypsoCardExtensionProvider
               .createCardSelection()
-              .filterByDfName("A0000004040125090101")
-              .prepareReadRecord(
-                  CalypsoClassicInfo.SFI_EnvironmentAndHolder, CalypsoClassicInfo.RECORD_NUMBER_1))
+              .filterByDfName(CardInfo.NAVIGO_BPRIME_AID)
+              .prepareReadRecord(CardInfo.SFI_EnvironmentAndHolder, CardInfo.RECORD_NUMBER_1))
 
       cardSelectionManager.scheduleCardSelectionScenario(
           cardReader,
@@ -78,63 +83,67 @@ internal class CardManager(private val activity: MainActivity) {
     } catch (e: Exception) {
       Timber.e(e)
     }
-    activity.notifyResult("Card reader ready.")
+    activity.onResult("Card reader ready.")
   }
 
+  /**
+   * Processes the incoming card event (insertion / removal).
+   *
+   * A transaction is carried out with the cards that have been successfully selected. This
+   * transaction will be done with or without security depending on whether a SAM is present or not.
+   */
   fun onReaderEvent(readerEvent: CardReaderEvent?) {
 
     timestamp = System.currentTimeMillis()
-    activity.notifyResult("New ReaderEvent received : ${readerEvent?.type?.name}")
+    activity.onResult("New ReaderEvent received : ${readerEvent?.type?.name}")
 
-      when (readerEvent?.type) {
-        CardReaderEvent.Type.CARD_MATCHED -> {
-          val selectionsResult =
-              cardSelectionManager.parseScheduledCardSelectionsResponse(
-                  readerEvent.scheduledCardSelectionsResponse)
-          val calypsoCard = selectionsResult.activeSmartCard as CalypsoCard
-          activity.notifyResult(
-              "Card ${ByteArrayUtil.toHex(calypsoCard.applicationSerialNumber)} detected with DFNAME: ${ByteArrayUtil.toHex(calypsoCard.dfName)}")
-          val efEnvironmentHolder =
-              calypsoCard.getFileBySfi(CalypsoClassicInfo.SFI_EnvironmentAndHolder)
-          activity.notifyResult(
-              "Environment and Holder file:\n${
+    when (readerEvent?.type) {
+      CardReaderEvent.Type.CARD_MATCHED -> {
+        val selectionsResult =
+            cardSelectionManager.parseScheduledCardSelectionsResponse(
+                readerEvent.scheduledCardSelectionsResponse)
+        val calypsoCard = selectionsResult.activeSmartCard as CalypsoCard
+        activity.onResult(
+            "Card ${ByteArrayUtil.toHex(calypsoCard.applicationSerialNumber)} detected with DFNAME: ${ByteArrayUtil.toHex(calypsoCard.dfName)}")
+        val efEnvironmentHolder = calypsoCard.getFileBySfi(CardInfo.SFI_EnvironmentAndHolder)
+        activity.onResult(
+            "Environment and Holder file:\n${
                             ByteArrayUtil.toHex(
                                 efEnvironmentHolder.data.content
                             )
                         }")
-            try {
-              runCardTransaction(cardReader, calypsoCard, cardSecuritySetting)
-              val counter =
-                  calypsoCard
-                      .getFileBySfi(CalypsoClassicInfo.SFI_Counter1)
-                      .data
-                      .getContentAsCounterValue(CalypsoClassicInfo.RECORD_NUMBER_1)
-              val eventLog =
-                  ByteArrayUtil.toHex(
-                      calypsoCard.getFileBySfi(CalypsoClassicInfo.SFI_EventLog).data.content)
-              activity.notifyResult("Counter value: $counter")
-              activity.notifyResult("EventLog file:\n$eventLog")
-            } catch (e: KeyplePluginException) {
-              Timber.e(e)
-              activity.notifyResult("Exception: ${e.message}")
-            } catch (e: Exception) {
-              Timber.e(e)
-              activity.notifyResult("Exception: ${e.message}")
-            }
-          cardReader.finalizeCardProcessing()
+        try {
+          runCardTransaction(cardReader, calypsoCard, cardSecuritySetting)
+          val counter =
+              calypsoCard
+                  .getFileBySfi(CardInfo.SFI_Counter1)
+                  .data
+                  .getContentAsCounterValue(CardInfo.RECORD_NUMBER_1)
+          val eventLog =
+              ByteArrayUtil.toHex(calypsoCard.getFileBySfi(CardInfo.SFI_EventLog).data.content)
+          activity.onResult("Counter value: $counter")
+          activity.onResult("EventLog file:\n$eventLog")
+        } catch (e: KeyplePluginException) {
+          Timber.e(e)
+          activity.onResult("Exception: ${e.message}")
+        } catch (e: Exception) {
+          Timber.e(e)
+          activity.onResult("Exception: ${e.message}")
         }
-        CardReaderEvent.Type.CARD_INSERTED -> {
-          activity.notifyResult("Card detected but AID didn't match with ${CalypsoClassicInfo.AID}")
-          cardReader.finalizeCardProcessing()
-        }
-        CardReaderEvent.Type.CARD_REMOVED -> {
-          activity.notifyResult("Card removed")
-          activity.notifyHeader("Waiting for a card...")
-        }
-        else -> {
-          // Do nothing
-        }
+        cardReader.finalizeCardProcessing()
       }
+      CardReaderEvent.Type.CARD_INSERTED -> {
+        activity.onResult("Card detected but AID didn't match the selection")
+        cardReader.finalizeCardProcessing()
+      }
+      CardReaderEvent.Type.CARD_REMOVED -> {
+        activity.onResult("Card removed")
+        activity.onHeader("Waiting for a card...")
+      }
+      else -> {
+        // Do nothing
+      }
+    }
   }
 
   private fun runCardTransaction(
@@ -153,19 +162,21 @@ internal class CardManager(private val activity: MainActivity) {
     val calypsoCardExtensionProvider = CalypsoExtensionService.getInstance()
     val cardTransaction =
         calypsoCardExtensionProvider.createCardTransactionWithoutSecurity(cardReader, calypsoCard)
-    /*
-     * Prepare the reading of two additional files.
-     */
+
+    // Read 4 files
+    // record size is optional when out of a secure session
     cardTransaction
-        .prepareReadRecord(CalypsoClassicInfo.SFI_EventLog, CalypsoClassicInfo.RECORD_NUMBER_1)
-        .prepareReadRecord(CalypsoClassicInfo.SFI_ContractList, CalypsoClassicInfo.RECORD_NUMBER_1)
-        .prepareReadRecord(CalypsoClassicInfo.SFI_Contracts, CalypsoClassicInfo.RECORD_NUMBER_1)
-        .prepareReadRecord(CalypsoClassicInfo.SFI_Counter1, CalypsoClassicInfo.RECORD_NUMBER_1)
+        .prepareReadRecord(CardInfo.SFI_EventLog, CardInfo.RECORD_NUMBER_1)
+        .prepareReadRecord(CardInfo.SFI_ContractList, CardInfo.RECORD_NUMBER_1)
+        .prepareReadRecord(CardInfo.SFI_Contracts, CardInfo.RECORD_NUMBER_1)
+        .prepareReadRecord(CardInfo.SFI_Counter1, CardInfo.RECORD_NUMBER_1)
 
     cardTransaction.processCardCommands()
+
     val transactionTime = System.currentTimeMillis() - timestamp
     Timber.d("Card transaction ended successfully (%d ms)", transactionTime)
-    activity.notifyResult("Transaction time $transactionTime ms")
+    // Please note! The indicated transaction time does not take into account the selection phase
+    activity.onResult("Transaction time $transactionTime ms")
   }
 
   private fun runCardTransactionWithSam(
@@ -173,27 +184,28 @@ internal class CardManager(private val activity: MainActivity) {
       calypsoCard: CalypsoCard,
       cardSecuritySetting: CardSecuritySetting
   ) {
-    val newEventRecord: ByteArray =
-        ByteArrayUtil.fromHex("8013C8EC55667788112233445566778811223344556677881122334455")
 
+    // Open a Secure Session with the DEBIT key
+    // Read 3 files
+    // record size is mandatory when inside of a secure session
     val cardTransactionManager =
         CalypsoExtensionService.getInstance()
             .createCardTransaction(cardReader, calypsoCard, cardSecuritySetting)
             .prepareReadRecords(
-                CalypsoClassicInfo.SFI_EventLog,
-                CalypsoClassicInfo.RECORD_NUMBER_1,
-                CalypsoClassicInfo.RECORD_NUMBER_1,
-                CalypsoClassicInfo.RECORD_SIZE)
+                CardInfo.SFI_EventLog,
+                CardInfo.RECORD_NUMBER_1,
+                CardInfo.RECORD_NUMBER_1,
+                CardInfo.RECORD_SIZE)
             .prepareReadRecords(
-                CalypsoClassicInfo.SFI_ContractList,
-                CalypsoClassicInfo.RECORD_NUMBER_1,
-                CalypsoClassicInfo.RECORD_NUMBER_1,
-                CalypsoClassicInfo.RECORD_SIZE)
+                CardInfo.SFI_ContractList,
+                CardInfo.RECORD_NUMBER_1,
+                CardInfo.RECORD_NUMBER_1,
+                CardInfo.RECORD_SIZE)
             .prepareReadRecords(
-                CalypsoClassicInfo.SFI_Counter1,
-                CalypsoClassicInfo.RECORD_NUMBER_1,
-                CalypsoClassicInfo.RECORD_NUMBER_1,
-                CalypsoClassicInfo.RECORD_SIZE)
+                CardInfo.SFI_Counter1,
+                CardInfo.RECORD_NUMBER_1,
+                CardInfo.RECORD_NUMBER_1,
+                CardInfo.RECORD_SIZE)
             .processOpening(WriteAccessLevel.DEBIT)
 
     /*
@@ -203,10 +215,10 @@ internal class CardManager(private val activity: MainActivity) {
     // read the elected contract
     cardTransactionManager
         .prepareReadRecords(
-            CalypsoClassicInfo.SFI_Contracts,
-            CalypsoClassicInfo.RECORD_NUMBER_1,
-            CalypsoClassicInfo.RECORD_NUMBER_1,
-            CalypsoClassicInfo.RECORD_SIZE)
+            CardInfo.SFI_Contracts,
+            CardInfo.RECORD_NUMBER_1,
+            CardInfo.RECORD_NUMBER_1,
+            CardInfo.RECORD_SIZE)
         .processCardCommands()
 
     /*
@@ -215,12 +227,13 @@ internal class CardManager(private val activity: MainActivity) {
 
     // add an event record and close the Secure Session
     cardTransactionManager
-        .prepareAppendRecord(CalypsoClassicInfo.SFI_EventLog, newEventRecord)
+        .prepareAppendRecord(CardInfo.SFI_EventLog, CardInfo.eventLog_dataFill)
         .processClosing()
 
     val transactionTime = System.currentTimeMillis() - timestamp
     Timber.d("Card transaction ended successfully (%d ms)", transactionTime)
-    activity.notifyResult("Transaction time $transactionTime ms")
+    // Please note! The indicated transaction time does not take into account the selection phase
+    activity.onResult("Transaction time $transactionTime ms")
   }
 
   /**
@@ -245,32 +258,17 @@ internal class CardManager(private val activity: MainActivity) {
     val cardResourceService = CardResourceServiceProvider.getService()
 
     // Configure the card resource service:
-    // - allocation mode is blocking with a 100 milliseconds cycle and a 10 seconds timeout.
-    // - the readers are searched in the PC/SC plugin, the observation of the plugin (for the
-    // connection/disconnection of readers) and of the readers (for the insertion/removal of
-    // cards)
-    // is activated.
-    // - two card resource profiles A and B are defined, each expecting a specific card
-    // characterized by its power-on data and placed in a specific reader.
+    // - non blocking allocation mode
+    // - the reader is searched in the plugin
+    // - one SAM resource profiles is defined
     // - the timeout for using the card's resources is set at 5 seconds.
     cardResourceService
         .configurator
-        .withBlockingAllocationMode(100, 10000)
         .withPlugins(
             PluginsConfigurator.builder()
-                .addPluginWithMonitoring(
-                    plugin,
-                    { reader: Reader ->
-                      Timber.e("Nothing to configure for reader '%s'", reader.name)
-                    },
-                    { pluginName: String, e: Throwable ->
-                      Timber.e(e, "An unexpected plugin error occurred in '%s':", pluginName)
-                    },
-                    { pluginName: String, readerName: String, e: Throwable ->
-                      Timber.e(
-                          e, "An unexpected reader error occurred: %s:%s", pluginName, readerName)
-                    })
-                .withUsageTimeout(5000)
+                .addPlugin(plugin) { reader: Reader ->
+                  Timber.e("Nothing to configure for reader '%s'", reader.name)
+                }
                 .build())
         .withCardResourceProfiles(
             CardResourceProfileConfigurator.builder(samProfileName, samCardResourceExtension)
@@ -290,9 +288,9 @@ internal class CardManager(private val activity: MainActivity) {
               .createCardSecuritySetting()
               .setSamResource(samResource.reader, samResource.smartCard as CalypsoSam)
               .enableMultipleSession()
-      activity.notifyResult("SAM resource found. Continue with security.")
+      activity.onResult("SAM resource found. Continue with security.")
     } else {
-      activity.notifyResult("No SAM resource found. Continue without security.")
+      activity.onResult("No SAM resource found. Continue without security.")
     }
   }
 }
