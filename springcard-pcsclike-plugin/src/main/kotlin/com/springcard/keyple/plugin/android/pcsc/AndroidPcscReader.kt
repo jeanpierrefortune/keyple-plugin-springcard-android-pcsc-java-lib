@@ -7,6 +7,11 @@ package com.springcard.keyple.plugin.android.pcsc
 
 import org.eclipse.keyple.core.common.KeypleReaderExtension
 
+/**
+ * Android Pcsc reader
+ *
+ * @since 1.0.0
+ */
 interface AndroidPcscReader : KeypleReaderExtension {
   companion object {
     const val READER_NAME = "AndroidPcscReader"

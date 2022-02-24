@@ -7,6 +7,11 @@ package com.springcard.keyple.plugin.android.pcsc.spi
 
 import com.springcard.keyple.plugin.android.pcsc.DeviceInfo
 
+/**
+ * Device observer recipient of the device discovery.
+ *
+ * @since 1.0.0
+ */
 interface DeviceScannerSpi {
   fun onDeviceDiscovered(deviceInfoList: MutableCollection<DeviceInfo>)
 }

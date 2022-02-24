@@ -17,8 +17,7 @@ import org.eclipse.keyple.core.plugin.spi.reader.observable.state.removal.WaitFo
 import org.eclipse.keyple.core.util.ByteArrayUtil
 import timber.log.Timber
 
-/** Keyple SE Reader's Implementation for the Bluebird (SAM access) reader */
-@Suppress("INVISIBLE_ABSTRACT_MEMBER_FROM_SUPER_WARNING")
+/** Andorid Pcsc Reader implementation */
 internal class AndroidPcscReaderAdapter(val sCardReader: SCardReader) :
     AndroidPcscReader,
     ConfigurableReaderSpi,

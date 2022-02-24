@@ -7,6 +7,11 @@ package com.springcard.keyple.plugin.android.pcsc
 
 import android.content.Context
 
+/**
+ * Provider of factory of Android Pcsc plugin.
+ *
+ * @since 1.0.0
+ */
 object AndroidPcscPluginFactoryProvider {
   fun getFactory(
       type: AndroidPcscPluginFactory.Type.Link,
