@@ -78,7 +78,7 @@ internal class AndroidPcscReaderAdapter(val sCardReader: SCardReader) :
     if (apduIn != null) {
       sCardReader.channel.transmit(apduIn)
       waitCardResponse.block(WAIT_RESPONSE_TIMEOUT)
-        waitCardResponse.close()
+      waitCardResponse.close()
       synchronized(cardResponse) {
         if (cardResponse.isEmpty()) {
           throw CardIOException("[${this.name}]: not response received from the card.")

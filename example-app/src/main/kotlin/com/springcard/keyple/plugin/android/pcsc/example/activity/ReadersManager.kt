@@ -12,6 +12,7 @@ import com.springcard.keyple.plugin.android.pcsc.DeviceInfo
 import com.springcard.keyple.plugin.android.pcsc.example.calypso.CardInfo
 import com.springcard.keyple.plugin.android.pcsc.example.calypso.CardManager
 import com.springcard.keyple.plugin.android.pcsc.spi.DeviceScannerSpi
+import java.util.Locale
 import org.calypsonet.terminal.reader.CardReaderEvent
 import org.calypsonet.terminal.reader.ObservableCardReader
 import org.calypsonet.terminal.reader.spi.CardReaderObserverSpi
@@ -34,7 +35,10 @@ internal class ReadersManager(private val activity: MainActivity) :
   private val calypsoCardExtensionProvider: CalypsoExtensionService =
       CalypsoExtensionService.getInstance()
 
-  /** Initializes the card reader (Contact Reader) and SAM reader (Contactless Reader) */
+  /**
+   * Initializes the card reader (Contact Reader) and SAM reader (Contactless Reader)
+   * @param link The of link, USB or BLE.
+   */
   fun initReaders(link: AndroidPcscPluginFactory.Type.Link): Boolean {
     // Connexion to AndroidPcsc lib take time, we've added a callback to this factory.
     val pluginFactory: KeyplePluginExtensionFactory?
@@ -64,6 +68,8 @@ internal class ReadersManager(private val activity: MainActivity) :
     }
     androidPcscPlugin.addObserver(this)
 
+    activity.onResult("Plugin '${androidPcscPlugin.name}' created and observed")
+
     return true
   }
 
@@ -73,7 +79,7 @@ internal class ReadersManager(private val activity: MainActivity) :
     }
     activity.onResult("Device discovery is finished.\n${deviceInfoList.size} device(s) discovered.")
     for (deviceInfo in deviceInfoList) {
-      activity.onResult("Device: " + deviceInfo.textInfo)
+      activity.onResult("Reader: " + deviceInfo.textInfo)
     }
     // connect to first discovered device (we should ask the user)
     if (deviceInfoList.isNotEmpty()) {
@@ -113,6 +119,9 @@ internal class ReadersManager(private val activity: MainActivity) :
       var cardReaderAvailable = false
       var samReaderAvailable = false
       if (pluginEvent.type == PluginEvent.Type.READER_CONNECTED) {
+        // the card and SAM readers are assigned according to their name.
+        // Here the card reader contains 'contactless' in its name and the SAM reader contains
+        // 'SAM'.
         for (readerName in pluginEvent.readerNames) {
           if (readerName.toUpperCase().contains("CONTACTLESS")) {
             cardReaderAvailable = true
@@ -122,7 +131,9 @@ internal class ReadersManager(private val activity: MainActivity) :
             onSamReaderConnected(readerName)
           }
         }
+        // If a SAM reader is present, the presence of a SAM will be made later.
         if (!samReaderAvailable) {
+          // nous n'avons pas trouvé de lecteur SAM.
           activity.onResult("No SAM reader available. Continue without security")
         }
         if (cardReaderAvailable) {
@@ -132,7 +143,9 @@ internal class ReadersManager(private val activity: MainActivity) :
         }
       }
       if (pluginEvent.type == PluginEvent.Type.READER_DISCONNECTED) {
-        activity.onAction("Reader '${pluginEvent.readerNames.first()}' connected.")
+        for (readerName in pluginEvent.readerNames) {
+          activity.onAction("Reader '$readerName' connected.")
+        }
       }
     }
   }

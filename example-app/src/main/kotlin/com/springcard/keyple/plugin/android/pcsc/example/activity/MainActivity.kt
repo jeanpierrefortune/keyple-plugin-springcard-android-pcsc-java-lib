@@ -92,12 +92,12 @@ class MainActivity : AppCompatActivity(), EventNotifierSpi {
         builder.setTitle("Interface selection")
         builder.setMessage("Please choose the type of interface")
 
-        builder.setPositiveButton("USB") { dialog, which ->
+        builder.setPositiveButton("USB") { _, _ ->
           Toast.makeText(applicationContext, "USB", Toast.LENGTH_SHORT).show()
           launchUsb()
         }
 
-        builder.setNegativeButton("BLE") { dialog, which ->
+        builder.setNegativeButton("BLE") { _, _ ->
           Toast.makeText(applicationContext, "BLE", Toast.LENGTH_SHORT).show()
           checkPermissionAndLaunchBle()
         }

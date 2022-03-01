@@ -19,6 +19,7 @@ import android.widget.Toast
 import com.springcard.keyple.plugin.R
 import com.springcard.keyple.plugin.android.pcsc.spi.DeviceScannerSpi
 import com.springcard.pcsclike.SCardReaderList
+import java.util.Locale
 import org.xmlpull.v1.XmlPullParser
 import timber.log.Timber
 

@@ -18,8 +18,8 @@ internal constructor(val type: AndroidPcscPluginFactory.Type.Link, val context: 
 
   val name = "${AndroidPcscPlugin.PLUGIN_NAME}_${type.name}"
 
-  override fun getPluginName():String {
-      return name
+  override fun getPluginName(): String {
+    return name
   }
 
   override fun getPlugin(): PluginSpi =

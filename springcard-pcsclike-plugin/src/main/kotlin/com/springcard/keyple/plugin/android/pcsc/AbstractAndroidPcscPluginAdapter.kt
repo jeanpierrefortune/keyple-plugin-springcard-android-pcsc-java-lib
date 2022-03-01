@@ -19,8 +19,10 @@ import org.eclipse.keyple.core.plugin.spi.reader.ReaderSpi
 import timber.log.Timber
 
 /** Class providing the common features of both USB and BLE links */
-internal abstract class AbstractAndroidPcscPluginAdapter(private var name:String, var context: Context) :
-    AndroidPcscPlugin, ObservablePluginSpi {
+internal abstract class AbstractAndroidPcscPluginAdapter(
+    private var name: String,
+    var context: Context
+) : AndroidPcscPlugin, ObservablePluginSpi {
 
   private val WAIT_RESPONSE_TIMEOUT: Long = 5000
   private val MONITORING_CYCLE_DURATION_MS = 1000
