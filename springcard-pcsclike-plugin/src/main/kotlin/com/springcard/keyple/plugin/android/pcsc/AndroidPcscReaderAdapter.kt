@@ -54,7 +54,8 @@ internal class AndroidPcscReaderAdapter(val sCardReader: SCardReader) :
 
   override fun closePhysicalChannel() {
     Timber.v("Close physical channel")
-    sCardReader.channel.disconnect()
+    // may be invoked at any time, run in a separate thread
+    synchronized(sCardReader) { Runnable { sCardReader.channel.disconnect() } }
   }
 
   override fun isPhysicalChannelOpen(): Boolean {
@@ -77,10 +78,15 @@ internal class AndroidPcscReaderAdapter(val sCardReader: SCardReader) :
     if (apduIn != null) {
       sCardReader.channel.transmit(apduIn)
       waitCardResponse.block(WAIT_RESPONSE_TIMEOUT)
-      waitCardResponse.close()
+        waitCardResponse.close()
+      synchronized(cardResponse) {
+        if (cardResponse.isEmpty()) {
+          throw CardIOException("[${this.name}]: not response received from the card.")
+        }
+      }
       return cardResponse
     } else {
-      throw CardIOException(this.getName() + ": null channel.")
+      throw ReaderIOException("[${this.name}]: null channel.")
     }
   }
 
@@ -105,15 +111,15 @@ internal class AndroidPcscReaderAdapter(val sCardReader: SCardReader) :
   }
 
   override fun activateProtocol(readerProtocol: String?) {
-    // TODO("Not yet implemented")
+    // nothing to do at the moment
   }
 
   override fun deactivateProtocol(readerProtocol: String?) {
-    // TODO("Not yet implemented")
+    // nothing to do at the moment
   }
 
   override fun isCurrentProtocol(readerProtocol: String?): Boolean {
-    // TODO("Not yet implemented")
+    // we consider the protocol matching since we do not provide filtering means
     return true
   }
 
@@ -145,9 +151,15 @@ internal class AndroidPcscReaderAdapter(val sCardReader: SCardReader) :
   }
 
   fun onCardPresenceChange(isCardPresent: Boolean) {
-    Timber.d("Reader '%s', card presence changed: %b", name, isCardPresent)
+    Timber.e("Reader '%s', card presence changed: %b", name, isCardPresent)
     this.isCardPresent = isCardPresent
     waitCardStatusChange.open()
+    if (!isCardPresent) {
+      // to shorten a possible transmission of apdu
+      Timber.e("Shorten transmit APDU")
+      synchronized(this) { this.cardResponse = byteArrayOf() }
+      // waitCardResponse.open()
+    }
   }
 
   fun onCardConnected() {
@@ -156,7 +168,12 @@ internal class AndroidPcscReaderAdapter(val sCardReader: SCardReader) :
 
   fun onCardResponseReceived(cardResponse: ByteArray) {
     Timber.d("Reader '%s', %d bytes received from the card", name, cardResponse.size)
-    this.cardResponse = cardResponse
+    synchronized(this) { this.cardResponse = cardResponse }
+    waitCardResponse.open()
+  }
+
+  fun onReaderOrCardError() {
+    synchronized(this) { this.cardResponse = byteArrayOf() }
     waitCardResponse.open()
   }
 }

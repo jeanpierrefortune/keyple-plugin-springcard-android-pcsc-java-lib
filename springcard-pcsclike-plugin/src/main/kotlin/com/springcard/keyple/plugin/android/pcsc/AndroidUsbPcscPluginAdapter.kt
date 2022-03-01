@@ -23,8 +23,8 @@ import org.xmlpull.v1.XmlPullParser
 import timber.log.Timber
 
 /** Provides the specific means to manage USB devices. */
-internal class AndroidUsbPcscPluginAdapter(context: Context) :
-    AbstractAndroidPcscPluginAdapter(context) {
+internal class AndroidUsbPcscPluginAdapter(name: String, context: Context) :
+    AbstractAndroidPcscPluginAdapter(name, context) {
   private lateinit var usbAttachReceiver: BroadcastReceiver
   private var usbDeviceList: MutableMap<String, UsbDevice> = mutableMapOf()
   private var usbDeviceInfoMap: MutableMap<String, DeviceInfo> = mutableMapOf()

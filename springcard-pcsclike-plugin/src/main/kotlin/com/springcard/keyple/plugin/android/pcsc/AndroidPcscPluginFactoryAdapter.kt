@@ -16,12 +16,16 @@ internal class AndroidPcscPluginFactoryAdapter
 internal constructor(val type: AndroidPcscPluginFactory.Type.Link, val context: Context) :
     AndroidPcscPluginFactory, PluginFactorySpi {
 
-  override fun getPluginName(): String = AndroidPcscPlugin.PLUGIN_NAME
+  val name = "${AndroidPcscPlugin.PLUGIN_NAME}_${type.name}"
+
+  override fun getPluginName():String {
+      return name
+  }
 
   override fun getPlugin(): PluginSpi =
       when (type) {
-        AndroidPcscPluginFactory.Type.Link.BLE -> AndroidBlePcscPluginAdapter(context)
-        AndroidPcscPluginFactory.Type.Link.USB -> AndroidUsbPcscPluginAdapter(context)
+        AndroidPcscPluginFactory.Type.Link.BLE -> AndroidBlePcscPluginAdapter(name, context)
+        AndroidPcscPluginFactory.Type.Link.USB -> AndroidUsbPcscPluginAdapter(name, context)
       }
 
   override fun getCommonApiVersion(): String = CommonApiProperties.VERSION

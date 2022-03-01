@@ -121,6 +121,12 @@ internal class CardManager(private val activity: MainActivity) {
                   .getContentAsCounterValue(CardInfo.RECORD_NUMBER_1)
           val eventLog =
               ByteArrayUtil.toHex(calypsoCard.getFileBySfi(CardInfo.SFI_EventLog).data.content)
+          val contractList =
+              ByteArrayUtil.toHex(calypsoCard.getFileBySfi(CardInfo.SFI_ContractList).data.content)
+          val contracts =
+              ByteArrayUtil.toHex(calypsoCard.getFileBySfi(CardInfo.SFI_Contracts).data.content)
+          activity.onResult("Contract list: $contractList")
+          activity.onResult("Contract: $contracts")
           activity.onResult("Counter value: $counter")
           activity.onResult("EventLog file:\n$eventLog")
         } catch (e: KeyplePluginException) {
@@ -206,7 +212,7 @@ internal class CardManager(private val activity: MainActivity) {
                 CardInfo.RECORD_NUMBER_1,
                 CardInfo.RECORD_NUMBER_1,
                 CardInfo.RECORD_SIZE)
-            .processOpening(WriteAccessLevel.DEBIT)
+            .processOpening(WriteAccessLevel.LOAD)
 
     /*
     Place for the analysis of the context and the list of contracts
@@ -219,6 +225,7 @@ internal class CardManager(private val activity: MainActivity) {
             CardInfo.RECORD_NUMBER_1,
             CardInfo.RECORD_NUMBER_1,
             CardInfo.RECORD_SIZE)
+        .prepareIncreaseCounter(CardInfo.SFI_Counter1, 1, 1)
         .processCardCommands()
 
     /*
