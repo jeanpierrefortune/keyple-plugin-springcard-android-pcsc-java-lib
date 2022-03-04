@@ -28,10 +28,10 @@ jobs:
       - name: Build and Test
         working-directory: .
         run: ./gradlew build test dokkaHtml --info --stacktrace
-      - name: Prepare Javadoc locally
+      - name: Prepare Dokka doc locally
         working-directory: .
         run: ./.github/scripts/prepare_javadoc.sh
-      - name: Deploy Javadoc to gh-pages
+      - name: Deploy Dokka doc to gh-pages
         uses: peaceiris/actions-gh-pages@v3
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}

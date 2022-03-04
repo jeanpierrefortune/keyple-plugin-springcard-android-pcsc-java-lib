@@ -36,6 +36,7 @@ cp -rf ../springcard-pcsclike-plugin/build/dokka/html/* $version/
 echo "Update versions list..."
 echo "| Version | Documents |" > list_versions.md
 echo "|:---:|---|" >> list_versions.md
+for directory in `ls -rd [0-9]*/ | cut -f1 -d'/'`
 do
   echo "| $directory | [API documentation]($directory)$diagrams |" >> list_versions.md
 done
