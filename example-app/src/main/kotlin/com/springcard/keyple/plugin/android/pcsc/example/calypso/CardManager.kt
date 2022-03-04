@@ -141,7 +141,7 @@ internal class CardManager(private val activity: MainActivity) {
       }
       CardReaderEvent.Type.CARD_INSERTED -> {
         activity.onResult("Card detected but AID didn't match the selection")
-          activity.onAction("Waiting for card removal...")
+        activity.onAction("Waiting for card removal...")
         cardReader.finalizeCardProcessing()
       }
       CardReaderEvent.Type.CARD_REMOVED -> {

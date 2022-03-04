@@ -8,6 +8,7 @@ package com.springcard.keyple.plugin.android.pcsc.example.activity
 import com.springcard.keyple.plugin.android.pcsc.AndroidPcscPlugin
 import com.springcard.keyple.plugin.android.pcsc.AndroidPcscPluginFactory
 import com.springcard.keyple.plugin.android.pcsc.AndroidPcscPluginFactoryProvider
+import com.springcard.keyple.plugin.android.pcsc.AndroidPcscReader
 import com.springcard.keyple.plugin.android.pcsc.DeviceInfo
 import com.springcard.keyple.plugin.android.pcsc.example.calypso.CardManager
 import com.springcard.keyple.plugin.android.pcsc.spi.DeviceScannerSpi
@@ -62,7 +63,7 @@ internal class ReaderManager(private val activity: MainActivity) :
         .scanDevices(
             2,
             true,
-            this,
+            this
         )
     androidPcscPlugin.setPluginObservationExceptionHandler { pluginName, e ->
       Timber.e(e, "An unexpected plugin error occurred in '%s':", pluginName)
@@ -164,10 +165,15 @@ internal class ReaderManager(private val activity: MainActivity) :
     cardReader = androidPcscPlugin.getReader(readerName) as ObservableReader
 
     if (cardReader != null) {
+      // we assume here that the reader is contactless
+      cardReader!!.getExtension(AndroidPcscReader::class.java).setContactless(true)
+
+      // we provide a simplified exception handler
       cardReader!!.setReaderObservationExceptionHandler { pluginName, readerName, e ->
         Timber.e("An unexpected reader error occurred: %s:%s", pluginName, readerName)
       }
 
+      // we place ourself as an observer of this reader
       cardReader!!.addObserver(this)
 
       cardReader!!.startCardDetection(ObservableCardReader.DetectionMode.REPEATING)

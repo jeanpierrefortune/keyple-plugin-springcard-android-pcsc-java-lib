@@ -8,7 +8,7 @@ package com.springcard.keyple.plugin.android.pcsc
 import org.eclipse.keyple.core.common.KeyplePluginExtensionFactory
 
 /**
- * Factory of Android Pcsc plugin.
+ * Factory of Android Pcsc plugin used to register the plugin with the Keyple SmartCard Service.
  *
  * @since 1.0.0
  */

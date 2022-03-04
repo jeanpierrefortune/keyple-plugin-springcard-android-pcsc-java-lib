@@ -13,7 +13,7 @@ import com.springcard.pcsclike.SCardError
 import com.springcard.pcsclike.SCardReader
 import com.springcard.pcsclike.SCardReaderList
 import com.springcard.pcsclike.SCardReaderListCallback
-import org.eclipse.keyple.core.plugin.CardIOException
+import org.eclipse.keyple.core.plugin.ReaderIOException
 import org.eclipse.keyple.core.plugin.spi.ObservablePluginSpi
 import org.eclipse.keyple.core.plugin.spi.reader.ReaderSpi
 import timber.log.Timber
@@ -79,14 +79,17 @@ internal abstract class AbstractAndroidPcscPluginAdapter(
   }
 
   override fun transmitControl(dataIn: ByteArray?): ByteArray {
-    if (dataIn != null && sCardReaders.isNotEmpty()) {
+    if (dataIn == null) {
+      throw IllegalStateException("transmitControl data cannot be null")
+    }
+    if (sCardReaders.isNotEmpty()) {
       // use the reader list to transmit controls
       readerList?.control(dataIn)
       waitControlResponse.block(WAIT_RESPONSE_TIMEOUT)
       waitControlResponse.close()
       return controlResponse
     } else {
-      throw CardIOException(this.getName() + ": null channel.")
+      throw ReaderIOException(this.getName() + ": sCardReaders is empty.")
     }
   }
 

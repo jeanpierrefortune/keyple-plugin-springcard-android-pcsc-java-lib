@@ -21,6 +21,7 @@ import com.springcard.keyple.plugin.android.pcsc.spi.DeviceScannerSpi
 import com.springcard.pcsclike.SCardReaderList
 import com.springcard.pcsclike.communication.GattAttributesD600
 import com.springcard.pcsclike.communication.GattAttributesSpringCore
+import org.eclipse.keyple.core.plugin.ReaderIOException
 import timber.log.Timber
 
 /**
@@ -124,12 +125,12 @@ internal class AndroidBlePcscPluginAdapter(name: String, context: Context) :
           val bleDeviceInfo: DeviceInfo =
               if (result.scanRecord!!.deviceName != null) {
                 DeviceInfo(
-                    result.device.address,
-                    "${result.scanRecord!!.deviceName!!} ${result.rssi}",
-                    deviceName)
+                    result.device.address, "${result.scanRecord!!.deviceName!!}", "${result.rssi}")
               } else {
                 DeviceInfo(
-                    result.device.address, "${result.device.address} ${result.rssi}", deviceName)
+                    result.device.address,
+                    "${result.device.address} ${result.rssi}",
+                    "${result.rssi}")
               }
           if (callbackType == ScanSettings.CALLBACK_TYPE_ALL_MATCHES) {
             if (!bluetoothDeviceInfoMap.containsKey(bleDeviceInfo.identifier)) {
@@ -166,6 +167,7 @@ internal class AndroidBlePcscPluginAdapter(name: String, context: Context) :
       handler.postDelayed(notifyScanResults, scanDelay) // Delay Period
     } catch (e: Exception) {
       Timber.e(e)
+      throw ReaderIOException("BLE scanning failure.", e)
     }
   }
 

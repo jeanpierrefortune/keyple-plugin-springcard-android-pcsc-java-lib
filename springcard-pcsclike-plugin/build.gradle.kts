@@ -10,6 +10,12 @@ plugins {
     id("com.diffplug.spotless")
 }
 
+buildscript {
+    dependencies {
+        classpath("org.jetbrains.dokka:dokka-base:1.6.10")
+    }
+}
+
 ///////////////////////////////////////////////////////////////////////////////
 //  APP CONFIGURATION
 ///////////////////////////////////////////////////////////////////////////////
@@ -122,12 +128,24 @@ dependencies {
 ///////////////////////////////////////////////////////////////////////////////
 tasks {
     dokkaHtml.configure {
+        moduleName.set("Android PCSC plugin for Keyple®")
         dokkaSourceSets {
             named("main") {
                 noAndroidSdkLink.set(false)
                 includeNonPublic.set(false)
-                includes.from(files("src/main/kdoc/overview.md"))
+                includes.from(files(
+                    "src/main/kotlin/com/springcard/keyple/plugin/android/pcsc/package-info.md",
+                    "src/main/kotlin/com/springcard/keyple/plugin/android/pcsc/spi/package-info.md"))
+                // Suppress a package
+                perPackageOption {
+                    matchingRegex.set(""".*pcsclike.*""") // will match all pcsclike packages and sub-packages
+                    suppress.set(true)
+                }
             }
+        }
+        pluginConfiguration<org.jetbrains.dokka.base.DokkaBase, org.jetbrains.dokka.base.DokkaBaseConfiguration> {
+            customStyleSheets = listOf(rootProject.file("springcard-pcsclike-plugin/src/main/kdoc/logo-styles.css"))
+            footerMessage = "Copyright @ 2022 <a href='https://www.springcard.com'>SpringCard</a>."
         }
     }
 }

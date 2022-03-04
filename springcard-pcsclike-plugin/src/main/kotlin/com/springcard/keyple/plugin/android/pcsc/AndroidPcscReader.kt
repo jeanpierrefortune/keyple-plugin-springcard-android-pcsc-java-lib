@@ -8,14 +8,13 @@ package com.springcard.keyple.plugin.android.pcsc
 import org.eclipse.keyple.core.common.KeypleReaderExtension
 
 /**
- * Android Pcsc reader
- *
+ * The Android Pcsc reader interface the methods of the Keyple Reader Extension of this reader.
  * @since 1.0.0
  */
 interface AndroidPcscReader : KeypleReaderExtension {
 
   /**
-   * Set the type of reader.
+   * Defines the type of reader that may be useful to a Keyple Card Extension.
    * @param contactless True if the reader is contactless type.
    * @since 1.0.0
    */

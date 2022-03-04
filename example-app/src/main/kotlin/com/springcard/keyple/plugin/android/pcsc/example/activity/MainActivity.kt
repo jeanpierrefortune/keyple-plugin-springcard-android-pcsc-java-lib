@@ -156,9 +156,7 @@ class MainActivity : AppCompatActivity(), EventNotifierSpi {
     }
   }
 
-  /**
-   * Starts the USB reader discovery.
-   */
+  /** Starts the USB reader discovery. */
   private fun launchUsb() {
     addActionEvent("Starting in USB mode...")
     readerDetectionPending = true
@@ -179,7 +177,8 @@ class MainActivity : AppCompatActivity(), EventNotifierSpi {
   /**
    * Checks the Bluetooth permission, makes a request to the user if needed.
    *
-   * Starts the BLE reader discovery if the permission is already granted, otherwise the discovery will be started when the response to the request is received.
+   * Starts the BLE reader discovery if the permission is already granted, otherwise the discovery
+   * will be started when the response to the request is received.
    */
   private fun checkPermissionAndLaunchBle() {
     addActionEvent("Starting in BLE mode...")
@@ -233,7 +232,8 @@ class MainActivity : AppCompatActivity(), EventNotifierSpi {
   /**
    * Starts the BLE readers discovery, manages the Bluetooth adapter status.
    *
-   * If the Bluetooth adapter is disabled, a request is made to the user and this method will be invoked again upon receiving the user's positive choice.
+   * If the Bluetooth adapter is disabled, a request is made to the user and this method will be
+   * invoked again upon receiving the user's positive choice.
    */
   private fun launchBle() {
     if (bluetoothAdapter?.isDisabled == true) {
@@ -259,14 +259,14 @@ class MainActivity : AppCompatActivity(), EventNotifierSpi {
    * Launches the BLE reader discovery if the Bluetooth adapter is enabled.
    */
   private var enableBluetoothRequest =
-    registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
-      if (result.resultCode == RESULT_OK) {
-        // granted
-        Timber.d("Bluetooth enabled")
-        launchBle()
-      } else {
-        // deny
-        Timber.d("Bluetooth disabled")
+      registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
+        if (result.resultCode == RESULT_OK) {
+          // granted
+          Timber.d("Bluetooth enabled")
+          launchBle()
+        } else {
+          // deny
+          Timber.d("Bluetooth disabled")
+        }
       }
-    }
 }
