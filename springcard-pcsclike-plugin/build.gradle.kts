@@ -125,7 +125,7 @@ dependencies {
 ///////////////////////////////////////////////////////////////////////////////
 tasks {
     dokkaHtml.configure {
-        moduleName.set("Android PCSC plugin for Keyple®")
+        moduleName.set("Keyple® plugin Android PCSC")
         dokkaSourceSets {
             named("main") {
                 noAndroidSdkLink.set(false)
