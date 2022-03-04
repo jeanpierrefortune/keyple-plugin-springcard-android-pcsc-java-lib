@@ -30,7 +30,7 @@ rm -rf $version-rc*
 echo "Create target directory $version..."
 mkdir $version
 
-echo "Copy javadoc and uml files..."
+echo "Copy dokka doc files..."
 cp -rf ../springcard-pcsclike-plugin/build/dokka/html/* $version/
 
 echo "Update versions list..."
