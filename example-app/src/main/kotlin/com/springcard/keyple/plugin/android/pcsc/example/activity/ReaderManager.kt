@@ -58,13 +58,7 @@ internal class ReaderManager(private val activity: MainActivity) :
     // in
     // return
     androidPcscPlugin = smartCardService.registerPlugin(pluginFactory) as ObservablePlugin
-    androidPcscPlugin
-        .getExtension(AndroidPcscPlugin::class.java)
-        .scanDevices(
-            2,
-            true,
-            this
-        )
+    androidPcscPlugin.getExtension(AndroidPcscPlugin::class.java).scanDevices(2, true, this)
     androidPcscPlugin.setPluginObservationExceptionHandler { pluginName, e ->
       Timber.e(e, "An unexpected plugin error occurred in '%s':", pluginName)
     }
