@@ -91,9 +91,6 @@ android {
 dependencies {
     implementation("org.jetbrains.kotlin:kotlin-stdlib:$kotlinVersion")
 
-    // bluebird libs
-    implementation(fileTree(mapOf("dir" to "libs", "include" to listOf("*.jar"))))
-
     //keyple
     implementation("org.eclipse.keyple:keyple-common-java-api:2.0.0")
     implementation("org.eclipse.keyple:keyple-plugin-java-api:2.0.0")
