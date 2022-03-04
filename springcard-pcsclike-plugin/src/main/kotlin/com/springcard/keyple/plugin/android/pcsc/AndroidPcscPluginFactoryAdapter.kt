@@ -11,21 +11,27 @@ import org.eclipse.keyple.core.plugin.PluginApiProperties
 import org.eclipse.keyple.core.plugin.spi.PluginFactorySpi
 import org.eclipse.keyple.core.plugin.spi.PluginSpi
 
-/** Implementation of the AndroidPcscPluginFactory */
+/**
+ * Implementation of the AndroidPcscPluginFactory
+ * @since 1.0.0
+ */
 internal class AndroidPcscPluginFactoryAdapter
-internal constructor(val type: AndroidPcscPluginFactory.Type.Link, val context: Context) :
-    AndroidPcscPluginFactory, PluginFactorySpi {
-
-  val name = "${AndroidPcscPlugin.PLUGIN_NAME}_${type.name}"
+internal constructor(
+    private val deviceType: AndroidPcscPluginFactory.DeviceType,
+    val context: Context
+) : AndroidPcscPluginFactory, PluginFactorySpi {
+  private val PLUGIN_NAME = "AndroidPcscPlugin"
+  private val name = "${PLUGIN_NAME}_${deviceType.name}"
 
   override fun getPluginName(): String {
     return name
   }
 
+  /** Instantiates the plugin according to the specified link. */
   override fun getPlugin(): PluginSpi =
-      when (type) {
-        AndroidPcscPluginFactory.Type.Link.BLE -> AndroidBlePcscPluginAdapter(name, context)
-        AndroidPcscPluginFactory.Type.Link.USB -> AndroidUsbPcscPluginAdapter(name, context)
+      when (deviceType) {
+        AndroidPcscPluginFactory.DeviceType.BLE -> AndroidBlePcscPluginAdapter(name, context)
+        AndroidPcscPluginFactory.DeviceType.USB -> AndroidUsbPcscPluginAdapter(name, context)
       }
 
   override fun getCommonApiVersion(): String = CommonApiProperties.VERSION

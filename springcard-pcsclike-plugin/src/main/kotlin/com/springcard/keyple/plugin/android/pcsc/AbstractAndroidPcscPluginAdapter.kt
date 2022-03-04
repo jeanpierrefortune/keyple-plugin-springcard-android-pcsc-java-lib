@@ -18,7 +18,10 @@ import org.eclipse.keyple.core.plugin.spi.ObservablePluginSpi
 import org.eclipse.keyple.core.plugin.spi.reader.ReaderSpi
 import timber.log.Timber
 
-/** Class providing the common features of both USB and BLE links */
+/**
+ * Class providing the common features of both USB and BLE links
+ * @since 1.0.0
+ */
 internal abstract class AbstractAndroidPcscPluginAdapter(
     private var name: String,
     var context: Context
@@ -28,7 +31,7 @@ internal abstract class AbstractAndroidPcscPluginAdapter(
   private val MONITORING_CYCLE_DURATION_MS = 1000
 
   protected var readerList: SCardReaderList? = null
-  private var sCardReaders: MutableMap<String, SCardReader> = mutableMapOf()
+  private val sCardReaders: MutableMap<String, SCardReader> = mutableMapOf()
   private val readerSpis: MutableMap<String, AndroidPcscReaderAdapter> = mutableMapOf()
   private val waitControlResponse = ConditionVariable()
   private lateinit var controlResponse: ByteArray

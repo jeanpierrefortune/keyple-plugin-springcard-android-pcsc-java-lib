@@ -40,30 +40,10 @@ class MainActivity : AppCompatActivity(), EventNotifierSpi {
   private lateinit var layoutManager: RecyclerView.LayoutManager
   private val events = arrayListOf<EventModel>()
 
-  private val readerManager: ReadersManager = ReadersManager(this)
+  private val readerManager: ReaderManager = ReaderManager(this)
   private val areReadersInitialized = AtomicBoolean(false)
 
   private var readerDetectionPending = false
-  private val BLE_PERMISSIONS_REQUEST: Int = 1000
-
-  private val bluetoothAdapter: BluetoothAdapter? by lazy(LazyThreadSafetyMode.NONE) {
-    val bluetoothManager = getSystemService(Context.BLUETOOTH_SERVICE) as BluetoothManager
-    bluetoothManager.adapter
-  }
-  private val BluetoothAdapter.isDisabled: Boolean
-    get() = !isEnabled
-
-  var requestBluetooth =
-      registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
-        if (result.resultCode == RESULT_OK) {
-          // granted
-          Timber.d("Bluetooth enabled")
-          launchBle()
-        } else {
-          // deny
-          Timber.d("Bluetooth disabled")
-        }
-      }
 
   override fun onCreate(savedInstanceState: Bundle?) {
     super.onCreate(savedInstanceState)
@@ -107,9 +87,6 @@ class MainActivity : AppCompatActivity(), EventNotifierSpi {
         addActionEvent("Start card detection")
         readerManager.startCardDetection()
       }
-    } else {
-      // 1st resume after activation, just reset the flag
-      readerDetectionPending = false
     }
   }
 
@@ -153,11 +130,6 @@ class MainActivity : AppCompatActivity(), EventNotifierSpi {
     addResultEvent(result)
   }
 
-  private fun clearEvents() {
-    events.clear()
-    adapter.notifyDataSetChanged()
-  }
-
   private fun addHeaderEvent(message: String) {
     events.add(EventModel(EventModel.TYPE_HEADER, message))
     updateList()
@@ -184,14 +156,31 @@ class MainActivity : AppCompatActivity(), EventNotifierSpi {
     }
   }
 
+  /**
+   * Starts the USB reader discovery.
+   */
   private fun launchUsb() {
     addActionEvent("Starting in USB mode...")
     readerDetectionPending = true
-    if (!readerManager.initReaders(AndroidPcscPluginFactory.Type.Link.USB)) {
+    if (!readerManager.initReaders(AndroidPcscPluginFactory.DeviceType.USB)) {
       addActionEvent("USB Reader initialization error.")
     }
   }
 
+  private val BLE_PERMISSIONS_REQUEST: Int = 1000
+
+  private val bluetoothAdapter: BluetoothAdapter? by lazy(LazyThreadSafetyMode.NONE) {
+    val bluetoothManager = getSystemService(Context.BLUETOOTH_SERVICE) as BluetoothManager
+    bluetoothManager.adapter
+  }
+  private val BluetoothAdapter.isDisabled: Boolean
+    get() = !isEnabled
+
+  /**
+   * Checks the Bluetooth permission, makes a request to the user if needed.
+   *
+   * Starts the BLE reader discovery if the permission is already granted, otherwise the discovery will be started when the response to the request is received.
+   */
   private fun checkPermissionAndLaunchBle() {
     addActionEvent("Starting in BLE mode...")
     readerDetectionPending = true
@@ -209,6 +198,11 @@ class MainActivity : AppCompatActivity(), EventNotifierSpi {
     }
   }
 
+  /**
+   * Receives the permission request response for the usage of the Bluetooth adapter.
+   *
+   * If the response is positive, launches the BLE reader discovery.
+   */
   override fun onRequestPermissionsResult(
       requestCode: Int,
       permissions: Array<out String>,
@@ -236,6 +230,11 @@ class MainActivity : AppCompatActivity(), EventNotifierSpi {
     }
   }
 
+  /**
+   * Starts the BLE readers discovery, manages the Bluetooth adapter status.
+   *
+   * If the Bluetooth adapter is disabled, a request is made to the user and this method will be invoked again upon receiving the user's positive choice.
+   */
   private fun launchBle() {
     if (bluetoothAdapter?.isDisabled == true) {
       // when Bluetooth is disabled we first request the user to enable it.
@@ -244,13 +243,30 @@ class MainActivity : AppCompatActivity(), EventNotifierSpi {
       Timber.i("Bluetooth adapter is disabled.")
       val enableBluetoothIntent = Intent(BluetoothAdapter.ACTION_REQUEST_ENABLE)
       addActionEvent("Request Bluetooth activation")
-      requestBluetooth.launch(enableBluetoothIntent)
+      enableBluetoothRequest.launch(enableBluetoothIntent)
     } else {
       // when Bluetooth is a enabled we start immediately the scanning of the readers
       Timber.i("Bluetooth adapter is enabled.")
-      if (!readerManager.initReaders(AndroidPcscPluginFactory.Type.Link.BLE)) {
-        addActionEvent("BLE Reader initialization error.")
+      if (!readerManager.initReaders(AndroidPcscPluginFactory.DeviceType.BLE)) {
+        addActionEvent("BLE reader initialization error.")
       }
     }
   }
+
+  /**
+   * Receives the result of the Bluetooth enabling request.
+   *
+   * Launches the BLE reader discovery if the Bluetooth adapter is enabled.
+   */
+  private var enableBluetoothRequest =
+    registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
+      if (result.resultCode == RESULT_OK) {
+        // granted
+        Timber.d("Bluetooth enabled")
+        launchBle()
+      } else {
+        // deny
+        Timber.d("Bluetooth disabled")
+      }
+    }
 }

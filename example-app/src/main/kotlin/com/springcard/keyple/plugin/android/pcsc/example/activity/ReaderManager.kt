@@ -9,10 +9,8 @@ import com.springcard.keyple.plugin.android.pcsc.AndroidPcscPlugin
 import com.springcard.keyple.plugin.android.pcsc.AndroidPcscPluginFactory
 import com.springcard.keyple.plugin.android.pcsc.AndroidPcscPluginFactoryProvider
 import com.springcard.keyple.plugin.android.pcsc.DeviceInfo
-import com.springcard.keyple.plugin.android.pcsc.example.calypso.CardInfo
 import com.springcard.keyple.plugin.android.pcsc.example.calypso.CardManager
 import com.springcard.keyple.plugin.android.pcsc.spi.DeviceScannerSpi
-import java.util.Locale
 import org.calypsonet.terminal.reader.CardReaderEvent
 import org.calypsonet.terminal.reader.ObservableCardReader
 import org.calypsonet.terminal.reader.spi.CardReaderObserverSpi
@@ -26,7 +24,7 @@ import org.eclipse.keyple.core.service.spi.PluginObserverSpi
 import timber.log.Timber
 
 /** Manages the initialization and observation of plugins and readers. */
-internal class ReadersManager(private val activity: MainActivity) :
+internal class ReaderManager(private val activity: MainActivity) :
     DeviceScannerSpi, PluginObserverSpi, CardReaderObserverSpi {
 
   private lateinit var androidPcscPlugin: ObservablePlugin
@@ -36,24 +34,27 @@ internal class ReadersManager(private val activity: MainActivity) :
       CalypsoExtensionService.getInstance()
 
   /**
-   * Initializes the card reader (Contact Reader) and SAM reader (Contactless Reader)
-   * @param link The of link, USB or BLE.
+   * Initializes the card reader discovery.
+   *
+   * Creates an observable plugin for the provided device type and adds an observer on it to handle
+   * plugin events triggered upon reader connections.
+   * @param deviceType The type of device, USB or BLE.
+   * @return True if the operation succeeded.
    */
-  fun initReaders(link: AndroidPcscPluginFactory.Type.Link): Boolean {
-    // Connexion to AndroidPcsc lib take time, we've added a callback to this factory.
+  fun initReaders(deviceType: AndroidPcscPluginFactory.DeviceType): Boolean {
     val pluginFactory: KeyplePluginExtensionFactory?
     try {
-      Timber.d("Create plugin factory for link %s", link.name)
-      pluginFactory = AndroidPcscPluginFactoryProvider.getFactory(link, activity)
+      Timber.d("Creation of a plugin factory for device type %s", deviceType.name)
+      pluginFactory = AndroidPcscPluginFactoryProvider.getFactory(deviceType, activity)
     } catch (e: Exception) {
       activity.onResult("Unable to create plugin factory.")
       return false
     }
-    // Get the instance of the SmartCardService (Singleton pattern)
     val smartCardService = SmartCardServiceProvider.getService()
     // check the card extension, any version inconsistencies will be logged
     smartCardService.checkCardExtension(calypsoCardExtensionProvider)
-    // Register the AndroidPcsc with SmartCardService, get the corresponding generic Plugin in
+    // Register the AndroidPcsc plugin with SmartCardService, get the corresponding generic Plugin
+    // in
     // return
     androidPcscPlugin = smartCardService.registerPlugin(pluginFactory) as ObservablePlugin
     androidPcscPlugin
@@ -90,14 +91,17 @@ internal class ReadersManager(private val activity: MainActivity) :
     }
   }
 
+  /** Starts the card discovery */
   fun startCardDetection() {
     cardReader?.startCardDetection(ObservableCardReader.DetectionMode.REPEATING)
   }
 
+  /** Stops the card discovery */
   fun stopCardDetection() {
     cardReader?.stopCardDetection()
   }
 
+  /** Stops started services cleanly */
   fun cleanUp() {
     // stop propagating the reader events
     cardReader?.removeObserver(this)
@@ -150,6 +154,12 @@ internal class ReadersManager(private val activity: MainActivity) :
     }
   }
 
+  /**
+   * Invoked when a card reader is connected.
+   *
+   * Starts the observation of the reader and prepares a card selection scenario.
+   * @param readerName The name of the reader.
+   */
   private fun onCardReaderConnected(readerName: String) {
     cardReader = androidPcscPlugin.getReader(readerName) as ObservableReader
 
@@ -168,8 +178,14 @@ internal class ReadersManager(private val activity: MainActivity) :
     }
   }
 
+  /**
+   * Invoked when a SAM reader is connected.
+   *
+   * Sets up the security settings to manage card secure session with the SAM when available.
+   * @param readerName The name of the reader.
+   */
   private fun onSamReaderConnected(readerName: String) {
-    cardManager.setupSecurityService(androidPcscPlugin, readerName, CardInfo.SAM_PROFILE_NAME)
+    cardManager.setupSecurityService(androidPcscPlugin, readerName)
   }
 
   override fun onReaderEvent(readerEvent: CardReaderEvent?) {

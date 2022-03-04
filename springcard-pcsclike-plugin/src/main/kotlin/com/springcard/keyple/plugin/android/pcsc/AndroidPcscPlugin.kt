@@ -17,14 +17,14 @@ import org.eclipse.keyple.core.common.KeyplePluginExtension
  */
 interface AndroidPcscPlugin : KeyplePluginExtension {
 
-  companion object {
-    const val PLUGIN_NAME = "AndroidPcscPlugin"
-  }
-
   /**
-   * Starts the USB or BLE device scanning. The scan stops either at the first compatible device
-   * found or after the time specified by timeout. In all cases, the results are returned
-   * asynchronously to the caller who must provide an object implementing DeviceScannerSpi.
+   * Starts the device scanning.
+   *
+   * The scan stops either at the first compatible device found or after the time specified by
+   * timeout.
+   *
+   * In all cases, the results are returned asynchronously to the caller who must provide an object
+   * implementing DeviceScannerSpi.
    * @param timeout The maximum scan time.
    * @param stopOnFirstDeviceDiscovered True to stop the scan as soon as a compatible device is
    * found.
@@ -39,13 +39,19 @@ interface AndroidPcscPlugin : KeyplePluginExtension {
 
   /**
    * Connects to the device whose identifier is provided as a parameter.
+   *
+   * The identifier is found in the data provided in response to #scanDevices via the
+   * #DeviceScannerSpi.
    * @param identifier The identifier of the device to connect to.
    * @since 1.0.0
    */
   fun connectToDevice(identifier: String)
 
   /**
-   * Transmits a control command.
+   * Transmits a control command to the device.
+   *
+   * This communication is not attached to a particular slot but to the whole device which can have
+   * several slots.
    * @param dataIn The input data of the command.
    * @return The output data of the command.
    * @since 1.0.0

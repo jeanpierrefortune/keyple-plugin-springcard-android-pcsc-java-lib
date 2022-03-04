@@ -23,15 +23,18 @@ import com.springcard.pcsclike.communication.GattAttributesD600
 import com.springcard.pcsclike.communication.GattAttributesSpringCore
 import timber.log.Timber
 
-/** Provides the specific means to manage BLE devices. */
+/**
+ * Provides the specific means to manage BLE devices.
+ * @since 1.0.0
+ */
 internal class AndroidBlePcscPluginAdapter(name: String, context: Context) :
     AbstractAndroidPcscPluginAdapter(name, context) {
-  private var bluetoothDeviceList: MutableMap<String, BluetoothDevice> = mutableMapOf()
-  private var bluetoothDeviceInfoMap: MutableMap<String, DeviceInfo> = mutableMapOf()
+  private val bluetoothDeviceList: MutableMap<String, BluetoothDevice> = mutableMapOf()
+  private val bluetoothDeviceInfoMap: MutableMap<String, DeviceInfo> = mutableMapOf()
   private lateinit var bluetoothScanner: BluetoothLeScanner
   private lateinit var deviceScannerSpi: DeviceScannerSpi
   private var scanThread: Thread? = null
-  private var handler: Handler = Handler(Looper.getMainLooper())
+  private val handler: Handler = Handler(Looper.getMainLooper())
   private var stopOnFirstDeviceDiscovered: Boolean = false
   private val bluetoothAdapter: BluetoothAdapter? by lazy(LazyThreadSafetyMode.NONE) {
     val bluetoothManager = context.getSystemService(Context.BLUETOOTH_SERVICE) as BluetoothManager

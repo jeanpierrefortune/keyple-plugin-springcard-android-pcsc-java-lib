@@ -19,19 +19,21 @@ import android.widget.Toast
 import com.springcard.keyple.plugin.R
 import com.springcard.keyple.plugin.android.pcsc.spi.DeviceScannerSpi
 import com.springcard.pcsclike.SCardReaderList
-import java.util.Locale
 import org.xmlpull.v1.XmlPullParser
 import timber.log.Timber
 
-/** Provides the specific means to manage USB devices. */
+/**
+ * Provides the specific means to manage USB devices.
+ * @since 1.0.0
+ */
 internal class AndroidUsbPcscPluginAdapter(name: String, context: Context) :
     AbstractAndroidPcscPluginAdapter(name, context) {
   private lateinit var usbAttachReceiver: BroadcastReceiver
-  private var usbDeviceList: MutableMap<String, UsbDevice> = mutableMapOf()
-  private var usbDeviceInfoMap: MutableMap<String, DeviceInfo> = mutableMapOf()
+  private val usbDeviceList: MutableMap<String, UsbDevice> = mutableMapOf()
+  private val usbDeviceInfoMap: MutableMap<String, DeviceInfo> = mutableMapOf()
   private lateinit var deviceScannerSpi: DeviceScannerSpi
   private val deviceFilter = mutableListOf<String>()
-  private var handler: Handler = Handler(Looper.getMainLooper())
+  private val handler: Handler = Handler(Looper.getMainLooper())
   private val ACTION_USB_PERMISSION = "com.android.example.USB_PERMISSION"
 
   private val usbManager: UsbManager by lazy {

@@ -13,10 +13,8 @@ import org.eclipse.keyple.core.common.KeyplePluginExtensionFactory
  * @since 1.0.0
  */
 interface AndroidPcscPluginFactory : KeyplePluginExtensionFactory {
-  companion object Type {
-    enum class Link {
-      USB,
-      BLE
-    }
+  enum class DeviceType {
+    USB,
+    BLE
   }
 }

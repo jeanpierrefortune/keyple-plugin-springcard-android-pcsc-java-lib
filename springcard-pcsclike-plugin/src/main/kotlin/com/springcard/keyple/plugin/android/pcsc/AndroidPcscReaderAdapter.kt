@@ -9,7 +9,6 @@ import android.os.ConditionVariable
 import com.springcard.pcsclike.SCardReader
 import org.eclipse.keyple.core.plugin.CardIOException
 import org.eclipse.keyple.core.plugin.ReaderIOException
-import org.eclipse.keyple.core.plugin.spi.reader.ConfigurableReaderSpi
 import org.eclipse.keyple.core.plugin.spi.reader.observable.ObservableReaderSpi
 import org.eclipse.keyple.core.plugin.spi.reader.observable.state.insertion.WaitForCardInsertionBlockingSpi
 import org.eclipse.keyple.core.plugin.spi.reader.observable.state.processing.DontWaitForCardRemovalDuringProcessingSpi
@@ -17,10 +16,12 @@ import org.eclipse.keyple.core.plugin.spi.reader.observable.state.removal.WaitFo
 import org.eclipse.keyple.core.util.ByteArrayUtil
 import timber.log.Timber
 
-/** Andorid Pcsc Reader implementation */
+/**
+ * Andorid Pcsc Reader implementation
+ * @since 1.0.0
+ */
 internal class AndroidPcscReaderAdapter(val sCardReader: SCardReader) :
     AndroidPcscReader,
-    ConfigurableReaderSpi,
     ObservableReaderSpi,
     WaitForCardInsertionBlockingSpi,
     DontWaitForCardRemovalDuringProcessingSpi,
@@ -104,23 +105,6 @@ internal class AndroidPcscReaderAdapter(val sCardReader: SCardReader) :
 
   override fun onStopDetection() {
     Timber.i("Stopping card detection on reader '%s'", name)
-  }
-
-  override fun isProtocolSupported(readerProtocol: String?): Boolean {
-    return true
-  }
-
-  override fun activateProtocol(readerProtocol: String?) {
-    // nothing to do at the moment
-  }
-
-  override fun deactivateProtocol(readerProtocol: String?) {
-    // nothing to do at the moment
-  }
-
-  override fun isCurrentProtocol(readerProtocol: String?): Boolean {
-    // we consider the protocol matching since we do not provide filtering means
-    return true
   }
 
   override fun waitForCardRemoval() {

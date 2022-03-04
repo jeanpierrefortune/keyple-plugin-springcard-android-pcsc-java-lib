@@ -13,9 +13,11 @@ import org.eclipse.keyple.core.common.KeypleReaderExtension
  * @since 1.0.0
  */
 interface AndroidPcscReader : KeypleReaderExtension {
-  companion object {
-    const val READER_NAME = "AndroidPcscReader"
-  }
 
+  /**
+   * Set the type of reader.
+   * @param contactless True if the reader is contactless type.
+   * @since 1.0.0
+   */
   fun setContactless(contactless: Boolean): AndroidPcscReader
 }

@@ -5,6 +5,7 @@
  */
 package com.springcard.keyple.plugin.android.pcsc.example.calypso
 
+import org.calypsonet.terminal.calypso.sam.CalypsoSam
 import org.eclipse.keyple.core.util.ByteArrayUtil
 
 /**
@@ -17,6 +18,7 @@ import org.eclipse.keyple.core.util.ByteArrayUtil
  * * Event Log
  * * Contract List
  * * Contracts
+ * * Counters
  */
 internal object CardInfo {
   /** Calypso default AID */
@@ -36,8 +38,7 @@ internal object CardInfo {
   val eventLog_dataFill: ByteArray =
       ByteArrayUtil.fromHex("00112233445566778899AABBCCDDEEFF00112233445566778899AABBCC")
 
-  // Security settings
-  const val SAM_PROFILE_NAME = "SAM C1"
+  val SamType = CalypsoSam.ProductType.SAM_C1
 
   const val RECORD_SIZE = 29
 }

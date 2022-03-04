@@ -10,6 +10,5 @@ open class EventModel(val type: Int, val text: String) {
     const val TYPE_HEADER = 0
     const val TYPE_ACTION = 1
     const val TYPE_RESULT = 2
-    const val TYPE_MULTICHOICE = 3
   }
 }

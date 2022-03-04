@@ -129,6 +129,7 @@ internal class CardManager(private val activity: MainActivity) {
           activity.onResult("Contract: $contracts")
           activity.onResult("Counter value: $counter")
           activity.onResult("EventLog file:\n$eventLog")
+          activity.onAction("Waiting for card removal...")
         } catch (e: KeyplePluginException) {
           Timber.e(e)
           activity.onResult("Exception: ${e.message}")
@@ -140,6 +141,7 @@ internal class CardManager(private val activity: MainActivity) {
       }
       CardReaderEvent.Type.CARD_INSERTED -> {
         activity.onResult("Card detected but AID didn't match the selection")
+          activity.onAction("Waiting for card removal...")
         cardReader.finalizeCardProcessing()
       }
       CardReaderEvent.Type.CARD_REMOVED -> {
@@ -152,6 +154,7 @@ internal class CardManager(private val activity: MainActivity) {
     }
   }
 
+  /** Runs the card transaction with or without security depending of the availability of a SAM. */
   private fun runCardTransaction(
       cardReader: CardReader,
       calypsoCard: CalypsoCard,
@@ -164,6 +167,7 @@ internal class CardManager(private val activity: MainActivity) {
     }
   }
 
+  /** Runs the card transaction when no SAM is available. */
   private fun runCardTransactionWithoutSam(cardReader: CardReader, calypsoCard: CalypsoCard) {
     val calypsoCardExtensionProvider = CalypsoExtensionService.getInstance()
     val cardTransaction =
@@ -185,6 +189,7 @@ internal class CardManager(private val activity: MainActivity) {
     activity.onResult("Transaction time $transactionTime ms")
   }
 
+  /** Runs the card transaction when a SAM is available. */
   private fun runCardTransactionWithSam(
       cardReader: CardReader,
       calypsoCard: CalypsoCard,
@@ -244,19 +249,22 @@ internal class CardManager(private val activity: MainActivity) {
   }
 
   /**
-   * Setup the [CardResourceService] to provide a Calypso SAM C1 resource when requested.
+   * Sets up the [CardResourceService] to provide a Calypso SAM C1 resource when requested.
+   *
+   * Creates a #CardSecuritySetting when a SAM resource
    *
    * @param plugin The plugin to which the SAM reader belongs.
    * @param readerNameRegex A regular expression matching the expected SAM reader name.
    * @param samProfileName A string defining the SAM profile.
    * @throws IllegalStateException If the expected card resource is not found.
    */
-  fun setupSecurityService(plugin: Plugin, readerNameRegex: String?, samProfileName: String?) {
-    // Create a card resource extension expecting a SAM "C1".
+  fun setupSecurityService(plugin: Plugin, readerNameRegex: String?) {
+    val samProfileName = CardInfo.SamType.name
+    // create a card resource extension expecting a SAM "C1".
     val samSelection =
         CalypsoExtensionService.getInstance()
             .createSamSelection()
-            .filterByProductType(CalypsoSam.ProductType.SAM_C1)
+            .filterByProductType(CardInfo.SamType)
 
     val samCardResourceExtension =
         CalypsoExtensionService.getInstance().createSamResourceProfileExtension(samSelection)
@@ -264,11 +272,7 @@ internal class CardManager(private val activity: MainActivity) {
     // Get the service
     val cardResourceService = CardResourceServiceProvider.getService()
 
-    // Configure the card resource service:
-    // - non blocking allocation mode
-    // - the reader is searched in the plugin
-    // - one SAM resource profiles is defined
-    // - the timeout for using the card's resources is set at 5 seconds.
+    // configure and start the card resource service
     cardResourceService
         .configurator
         .withPlugins(
@@ -287,16 +291,19 @@ internal class CardManager(private val activity: MainActivity) {
 
     // verify the resource availability
     val samResource = cardResourceService.getCardResource(samProfileName)
-    Timber.i(
-        "No valid SAM resource found for profile '$samProfileName' from reader '$readerNameRegex' in plugin '${plugin.name}'")
     if (samResource != null) {
       cardSecuritySetting =
           CalypsoExtensionService.getInstance()
               .createCardSecuritySetting()
               .setSamResource(samResource.reader, samResource.smartCard as CalypsoSam)
               .enableMultipleSession()
+
+      Timber.i(
+          "A valid SAM resource was found for profile '$samProfileName' from reader '$readerNameRegex' in plugin '${plugin.name}'")
       activity.onResult("SAM resource found. Continue with security.")
     } else {
+      Timber.i(
+          "No valid SAM resource was found for profile '$samProfileName' from reader '$readerNameRegex' in plugin '${plugin.name}'")
       activity.onResult("No SAM resource found. Continue without security.")
     }
   }

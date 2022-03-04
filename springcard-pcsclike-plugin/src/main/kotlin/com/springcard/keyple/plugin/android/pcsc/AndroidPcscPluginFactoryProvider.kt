@@ -14,9 +14,9 @@ import android.content.Context
  */
 object AndroidPcscPluginFactoryProvider {
   fun getFactory(
-      type: AndroidPcscPluginFactory.Type.Link,
+      deviceType: AndroidPcscPluginFactory.DeviceType,
       context: Context
   ): AndroidPcscPluginFactory {
-    return AndroidPcscPluginFactoryAdapter(type, context)
+    return AndroidPcscPluginFactoryAdapter(deviceType, context)
   }
 }
