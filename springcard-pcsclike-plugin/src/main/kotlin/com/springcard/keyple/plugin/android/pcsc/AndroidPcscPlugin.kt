@@ -10,8 +10,7 @@ import org.eclipse.keyple.core.common.KeyplePluginExtension
 import org.eclipse.keyple.core.plugin.ReaderIOException
 
 /**
- * The Android Pcsc plugin interface brings the methods of the Keyple Plugin Extension of this
- * plugin.
+ * The Android Pcsc plugin interface defines the methods of the Keyple Plugin Extension.
  *
  * @since 1.0.0
  */

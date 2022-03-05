@@ -93,6 +93,12 @@ override fun onPluginEvent(pluginEvent: PluginEvent?) {
 
 An example of implementation is available in the **example-app** folder.
 
+This example implements the plugin with the choice of USB or BLE mode.
+
+The card scenario corresponds to a Calypso transaction with or without SAM.
+
+It has been tested with SpringCard readers [Puck One](https://www.springcard.com/fr/products/puck-one) et [Puck Blue](https://www.springcard.com/fr/products/puck-blue)
+
 ## About the source code
 
 The code is built with **Gradle** and is compliant with **Java 1.8** in order to address a wide range of applications.
