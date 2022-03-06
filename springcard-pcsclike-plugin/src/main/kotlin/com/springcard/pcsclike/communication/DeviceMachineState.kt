@@ -1,12 +1,12 @@
 /*
- * Copyright (c) 2018-2018-2018 SpringCard - www.springcard.com
+ * Copyright (c)2022 SpringCard - www.springcard.com.com
  * All right reserved
  * This software is covered by the SpringCard SDK License Agreement - see LICENSE.txt
  */
 package com.springcard.pcsclike.communication
 
+import android.util.Log
 import com.springcard.pcsclike.SCardReaderList
-import timber.log.Timber
 
 internal enum class State {
   Closed,
@@ -20,14 +20,15 @@ internal enum class State {
 
 internal class DeviceMachineState(private val scardReaderList: SCardReaderList) {
 
+  private val TAG = this::class.java.simpleName
   @Volatile
   internal var currentState = State.Closed
     get() {
-      Timber.d("currentState = ${field.name}")
+      Log.d(TAG, "currentState = ${field.name}")
       return field
     }
     private set(value) {
-      Timber.d("New currentState = ${value.name}")
+      Log.d(TAG, "New currentState = ${value.name}")
       field = value
     }
   private var isCreated = false
@@ -38,7 +39,7 @@ internal class DeviceMachineState(private val scardReaderList: SCardReaderList) 
     currentState = newState
     var callback: (() -> Unit)? = null
 
-    Timber.d("State transition: $oldState -> $newState")
+    Log.d(TAG, "State transition: $oldState -> $newState")
 
     when (newState) {
       State.Closed -> {
@@ -59,7 +60,7 @@ internal class DeviceMachineState(private val scardReaderList: SCardReaderList) 
             isCreated = false
           }
           else -> {
-            Timber.w("Transition should not happen")
+            Log.w(TAG, "Transition should not happen")
             currentState = oldState
           }
         }
@@ -70,7 +71,7 @@ internal class DeviceMachineState(private val scardReaderList: SCardReaderList) 
             /* No callback */
           }
           else -> {
-            Timber.w("Transition should not happen")
+            Log.w(TAG, "Transition should not happen")
             currentState = oldState
           }
         }
@@ -112,7 +113,7 @@ internal class DeviceMachineState(private val scardReaderList: SCardReaderList) 
             /* But callback emitted from slot machine state */
           }
           else -> {
-            Timber.w("Transition should not happen")
+            Log.w(TAG, "Transition should not happen")
             currentState = oldState
           }
         }
@@ -128,7 +129,7 @@ internal class DeviceMachineState(private val scardReaderList: SCardReaderList) 
                 }
           }
           else -> {
-            Timber.w("Transition should not happen")
+            Log.w(TAG, "Transition should not happen")
             currentState = oldState
           }
         }
@@ -139,7 +140,7 @@ internal class DeviceMachineState(private val scardReaderList: SCardReaderList) 
             /* No callback */
           }
           else -> {
-            Timber.w("Transition should not happen")
+            Log.w(TAG, "Transition should not happen")
             currentState = oldState
           }
         }
@@ -151,7 +152,7 @@ internal class DeviceMachineState(private val scardReaderList: SCardReaderList) 
             /* No callback */
           }
           else -> {
-            Timber.w("Transition should not happen")
+            Log.w(TAG, "Transition should not happen")
             currentState = oldState
           }
         }
@@ -182,13 +183,13 @@ internal class DeviceMachineState(private val scardReaderList: SCardReaderList) 
             /* No callback */
           }
           else -> {
-            Timber.w("Transition should not happen")
+            Log.w(TAG, "Transition should not happen")
             currentState = oldState
           }
         }
       }
       else -> {
-        Timber.w("Impossible new state: $newState")
+        Log.w(TAG, "Impossible new state: $newState")
         currentState = oldState
       }
     }

@@ -1,35 +1,29 @@
 /*
- * Copyright (c) 2018-2018-2018 SpringCard - www.springcard.com
+ * Copyright (c)2022 SpringCard - www.springcard.com.com
  * All right reserved
  * This software is covered by the SpringCard SDK License Agreement - see LICENSE.txt
  */
 package com.springcard.pcsclike.communication
 
-import android.bluetooth.BluetoothAdapter
-import android.bluetooth.BluetoothDevice
-import android.bluetooth.BluetoothGatt
-import android.bluetooth.BluetoothGattCallback
-import android.bluetooth.BluetoothGattCharacteristic
-import android.bluetooth.BluetoothGattDescriptor
-import android.bluetooth.BluetoothProfile
+import android.bluetooth.*
+import android.bluetooth.BluetoothDevice.*
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
 import android.os.Build
+import android.util.Log
 import androidx.annotation.RequiresApi
 import com.springcard.pcsclike.SCardError
 import com.springcard.pcsclike.SCardReader
 import com.springcard.pcsclike.SCardReaderList
 import com.springcard.pcsclike.ccid.CcidFrame
 import com.springcard.pcsclike.ccid.CcidHandler
-import com.springcard.pcsclike.utils.hexStringToByteArray
-import com.springcard.pcsclike.utils.toHexString
+import com.springcard.pcsclike.utils.*
 import java.lang.Exception
-import java.util.UUID
+import java.util.*
 import kotlin.experimental.and
 import kotlin.experimental.inv
-import timber.log.Timber
 
 @RequiresApi(Build.VERSION_CODES.LOLLIPOP)
 internal class BleLowLevel(
@@ -70,6 +64,7 @@ internal class BleLowLevel(
   internal lateinit var charCcidPcToRdr: BluetoothGattCharacteristic
   private lateinit var charCcidStatus: BluetoothGattCharacteristic
 
+  private val TAG = this::class.java.simpleName
   private lateinit var mBluetoothGatt: BluetoothGatt
 
   private var cptConnectAttempts: Int = 0
@@ -86,7 +81,7 @@ internal class BleLowLevel(
   private val mGattCallback =
       object : BluetoothGattCallback() {
         override fun onConnectionStateChange(gatt: BluetoothGatt, status: Int, newState: Int) {
-          Timber.i("BLE event (${object{}.javaClass.enclosingMethod!!.name})")
+          Log.i(TAG, "BLE event (${object{}.javaClass.enclosingMethod!!.name})")
           if (newState == BluetoothProfile.STATE_CONNECTED) {
 
             /* Ask to reduce interval timer to 7.5 ms (android 5) or 11.25 ms */
@@ -94,21 +89,21 @@ internal class BleLowLevel(
             /* The device will reduce the supervision timeout itself */
             mBluetoothGatt.requestConnectionPriority(BluetoothGatt.CONNECTION_PRIORITY_HIGH)
 
-            Timber.i("Attempting to start service discovery")
+            Log.i(TAG, "Attempting to start service discovery")
             mBluetoothGatt.discoverServices()
           } else if (newState == BluetoothProfile.STATE_DISCONNECTED) {
             scardReaderList.commLayer.onDisconnected()
           } else {
             if (newState == BluetoothProfile.STATE_CONNECTING)
-                Timber.i("BLE state changed, unhandled STATE_CONNECTING")
+                Log.i(TAG, "BLE state changed, unhandled STATE_CONNECTING")
             else if (newState == BluetoothProfile.STATE_DISCONNECTING)
-                Timber.i("BLE state changed, unhandled STATE_DISCONNECTING")
+                Log.i(TAG, "BLE state changed, unhandled STATE_DISCONNECTING")
           }
         }
 
         override // New services discovered
         fun onServicesDiscovered(gatt: BluetoothGatt, status: Int) {
-          Timber.i("BLE event (${object{}.javaClass.enclosingMethod!!.name})")
+          Log.i(TAG, "BLE event (${object{}.javaClass.enclosingMethod!!.name})")
           if (status != BluetoothGatt.GATT_SUCCESS) {
             scardReaderList.commLayer.onCommunicationError(
                 SCardError(
@@ -118,7 +113,7 @@ internal class BleLowLevel(
           }
 
           val services = mBluetoothGatt.services
-          Timber.d(services.toString())
+          Log.d(TAG, services.toString())
 
           if (services.isEmpty()) {
             scardReaderList.commLayer.onCommunicationError(
@@ -135,9 +130,9 @@ internal class BleLowLevel(
           }
 
           for (srv in services) {
-            Timber.d("Service = " + srv.uuid.toString())
+            Log.d(TAG, "Service = " + srv.uuid.toString())
             for (chr in srv.characteristics) {
-              Timber.d("    Characteristic = ${chr.uuid}")
+              Log.d(TAG, "    Characteristic = ${chr.uuid}")
 
               if (uuidCharacteristicsCanIndicate.contains(chr.uuid)) {
                 characteristicsCanIndicate.add(chr)
@@ -168,7 +163,7 @@ internal class BleLowLevel(
             return
           }
 
-          Timber.d("Go to ReadingInformation")
+          Log.d(TAG, "Go to ReadingInformation")
           /* Trigger 1st read */
           mBluetoothGatt.readCharacteristic(characteristicsToRead[0])
         }
@@ -179,8 +174,9 @@ internal class BleLowLevel(
             characteristic: BluetoothGattCharacteristic,
             status: Int
         ) {
-          Timber.i("BLE event (${object {}.javaClass.enclosingMethod!!.name})")
-          Timber.d(
+          Log.i(TAG, "BLE event (${object {}.javaClass.enclosingMethod!!.name})")
+          Log.d(
+              TAG,
               "Read ${characteristic.value.toHexString()} on characteristic ${characteristic.uuid}")
           if (status != BluetoothGatt.GATT_SUCCESS) {
             scardReaderList.commLayer.onCommunicationError(
@@ -267,7 +263,7 @@ internal class BleLowLevel(
               }
             }
             else -> {
-              Timber.w("Unhandled characteristic read : ${characteristic.uuid}")
+              Log.w(TAG, "Unhandled characteristic read : ${characteristic.uuid}")
             }
           }
 
@@ -275,7 +271,7 @@ internal class BleLowLevel(
           if (indexCharToBeRead < characteristicsToRead.size) {
             mBluetoothGatt.readCharacteristic(characteristicsToRead[indexCharToBeRead])
           } else {
-            Timber.d("Reading Information finished")
+            Log.d(TAG, "Reading Information finished")
             /* Trigger 1st subscribing */
             enableNotifications(characteristicsCanIndicate[0])
           }
@@ -286,7 +282,7 @@ internal class BleLowLevel(
             characteristic: BluetoothGattCharacteristic,
             status: Int
         ) {
-          Timber.i("BLE event (${object{}.javaClass.enclosingMethod!!.name})")
+          Log.i(TAG, "BLE event (${object{}.javaClass.enclosingMethod!!.name})")
           if (status != BluetoothGatt.GATT_SUCCESS) {
             scardReaderList.commLayer.onCommunicationError(
                 SCardError(
@@ -296,7 +292,7 @@ internal class BleLowLevel(
           }
 
           if (!ccidWriteCharSequenced()) {
-            Timber.d("There is still data to write")
+            Log.d(TAG, "There is still data to write")
           }
         }
 
@@ -305,8 +301,9 @@ internal class BleLowLevel(
             gatt: BluetoothGatt,
             characteristic: BluetoothGattCharacteristic
         ) {
-          Timber.i("BLE event (${object{}.javaClass.enclosingMethod!!.name})")
-          Timber.d(
+          Log.i(TAG, "BLE event (${object{}.javaClass.enclosingMethod!!.name})")
+          Log.d(
+              TAG,
               "Characteristic ${characteristic.uuid} changed, value : ${characteristic.value.toHexString()}")
 
           when {
@@ -330,14 +327,15 @@ internal class BleLowLevel(
 
               /* Check if the Response is compete or not */
               if (rxBuffer.size - CcidFrame.HEADER_SIZE != ccidLength) {
-                Timber.d("Frame not complete, excepted length = $ccidLength")
+                Log.d(TAG, "Frame not complete, excepted length = $ccidLength")
               } else {
-                Timber.d("Write finished")
+                Log.d(TAG, "Write finished")
                 scardReaderList.commLayer.onResponseReceived(rxBuffer.toByteArray())
                 rxBuffer.clear()
               }
             }
-            else -> Timber.w("Notification arrived on wrong characteristic ${characteristic.uuid}")
+            else ->
+                Log.w(TAG, "Notification arrived on wrong characteristic ${characteristic.uuid}")
           }
         }
 
@@ -346,7 +344,7 @@ internal class BleLowLevel(
             descriptor: BluetoothGattDescriptor,
             status: Int
         ) {
-          Timber.i("BLE event (${object{}.javaClass.enclosingMethod!!.name})")
+          Log.i(TAG, "BLE event (${object{}.javaClass.enclosingMethod!!.name})")
           if (status != BluetoothGatt.GATT_SUCCESS) {
             scardReaderList.commLayer.onCommunicationError(
                 SCardError(
@@ -360,14 +358,14 @@ internal class BleLowLevel(
             val chr = characteristicsCanIndicate[indexCharToBeSubscribed]
             enableNotifications(chr)
           } else if (indexCharToBeSubscribed == characteristicsCanIndicate.size) {
-            Timber.d("Subscribing finished")
+            Log.d(TAG, "Subscribing finished")
             scardReaderList.commLayer.onCreateFinished()
           } else if (indexCharToBeSubscribed > characteristicsCanIndicate.size) {
             /* We subscribe again on CCID status*/
             if (descriptor.uuid == charCcidStatus.uuid) {
               scardReaderList.commLayer.onDeviceState(false)
             } else {
-              Timber.w("Useless subscribing (again) on characteristic ${descriptor.uuid }")
+              Log.w(TAG, "Useless subscribing (again) on characteristic ${descriptor.uuid }")
 
               /* Device is active */
               val isSleeping = false
@@ -386,18 +384,18 @@ internal class BleLowLevel(
         }
 
         override fun onMtuChanged(gatt: BluetoothGatt?, mtu: Int, status: Int) {
-          Timber.i("BLE event (${object{}.javaClass.enclosingMethod!!.name})")
-          Timber.d("MTU size = $mtu")
+          Log.i(TAG, "BLE event (${object{}.javaClass.enclosingMethod!!.name})")
+          Log.d(TAG, "MTU size = $mtu")
           super.onMtuChanged(gatt, mtu, status)
         }
 
         override fun onPhyUpdate(gatt: BluetoothGatt, txPhy: Int, rxPhy: Int, status: Int) {
-          Timber.i("BLE event (${object{}.javaClass.enclosingMethod!!.name})")
+          Log.i(TAG, "BLE event (${object{}.javaClass.enclosingMethod!!.name})")
           if (status != BluetoothGatt.GATT_SUCCESS) {
-            Timber.i("${object{}.javaClass.enclosingMethod!!.name}: Invalid status ($status)")
+            Log.i(TAG, "${object{}.javaClass.enclosingMethod!!.name}: Invalid status ($status)")
             return
           }
-          Timber.d("PHY changed, txPhy = $txPhy, rxPhy = $rxPhy")
+          Log.d(TAG, "PHY changed, txPhy = $txPhy, rxPhy = $rxPhy")
         }
       }
 
@@ -406,7 +404,7 @@ internal class BleLowLevel(
   private lateinit var appContext: Context
 
   override fun connect(ctx: Context) {
-    Timber.d("Connect")
+    Log.d(TAG, "Connect")
     /* Context is useless and could be set to null */
     /* cf https://stackoverflow.com/questions/56642912/why-android-bluetoothdevice-conenctgatt-require-context-if-it-not-use-it */
     mBluetoothGatt = bluetoothDevice.connectGatt(ctx, false, mGattCallback)
@@ -419,16 +417,16 @@ internal class BleLowLevel(
   }
 
   override fun disconnect() {
-    Timber.d("Disconnect")
+    Log.d(TAG, "Disconnect")
     mBluetoothGatt.disconnect()
-    Timber.i("BLE action (${object{}.javaClass.enclosingMethod!!.name})")
+    Log.i(TAG, "BLE action (${object{}.javaClass.enclosingMethod!!.name})")
 
     /* Unregister STATE_CHANGED callback */
     appContext.unregisterReceiver(mReceiver)
   }
 
   override fun close() {
-    Timber.d("Close")
+    Log.d(TAG, "Close")
     mBluetoothGatt.close()
   }
 
@@ -456,7 +454,7 @@ internal class BleLowLevel(
           txBuffer.toByteArray().sliceArray(txBufferCursorBegin until txBufferCursorEnd)
       /* If the data length is greater than MTU, Android will automatically send multiple packets */
       /* There is no need to split the data ourself  */
-      Timber.d("Writing ${charCcidPcToRdr.value.toHexString()}")
+      Log.d(TAG, "Writing ${charCcidPcToRdr.value.toHexString()}")
       if (!mBluetoothGatt.writeCharacteristic(charCcidPcToRdr)) {
         scardReaderList.commLayer.onCommunicationError(
             SCardError(
@@ -466,7 +464,7 @@ internal class BleLowLevel(
       }
 
       txBufferCursorBegin = txBufferCursorEnd
-      Timber.i("BLE action (${object{}.javaClass.enclosingMethod!!.name})")
+      Log.i(TAG, "BLE action (${object{}.javaClass.enclosingMethod!!.name})")
       false
     } else {
       true
@@ -519,9 +517,9 @@ internal class BleLowLevel(
       scardReaderList.isSleeping = isSleeping
       scardReaderList.commLayer.onDeviceState(isSleeping)
     } else if (scardReaderList.isSleeping && isSleeping) {
-      Timber.i("Device is still sleeping...")
+      Log.i(TAG, "Device is still sleeping...")
     } else if (!scardReaderList.isSleeping && !isSleeping) {
-      Timber.i("Device is still awake...")
+      Log.i(TAG, "Device is still awake...")
     }
 
     /* Update device state */

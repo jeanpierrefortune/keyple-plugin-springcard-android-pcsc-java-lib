@@ -1,24 +1,21 @@
 /*
- * Copyright (c) 2018-2018-2018 SpringCard - www.springcard.com
+ * Copyright (c)2022 SpringCard - www.springcard.com.com
  * All right reserved
  * This software is covered by the SpringCard SDK License Agreement - see LICENSE.txt
  */
 package com.springcard.pcsclike
 
 import android.bluetooth.BluetoothDevice
-import android.content.Context
+import android.content.*
 import android.hardware.usb.UsbDevice
 import android.os.Build
 import android.os.Handler
 import android.os.HandlerThread
 import android.os.Looper
-import com.springcard.pcsclike.ccid.CcidHandler
-import com.springcard.pcsclike.ccid.CcidSecureParameters
-import com.springcard.pcsclike.communication.CommunicationLayer
-import com.springcard.pcsclike.communication.DeviceMachineState
-import com.springcard.pcsclike.communication.State
+import android.util.Log
+import com.springcard.pcsclike.ccid.*
+import com.springcard.pcsclike.communication.*
 import java.lang.Exception
-import timber.log.Timber
 
 /**
  *
@@ -48,6 +45,8 @@ import timber.log.Timber
  */
 abstract class SCardReaderList
 internal constructor(internal val layerDevice: Any, userCallbacks: SCardReaderListCallback) {
+
+  private val TAG = this::class.java.simpleName
 
   internal lateinit var commLayer: CommunicationLayer
   internal var ccidHandler = CcidHandler(this)
@@ -147,7 +146,7 @@ internal constructor(internal val layerDevice: Any, userCallbacks: SCardReaderLi
   private var idThreadLocking = libThread.id
 
   internal fun enterExclusive() {
-    Timber.d("before lock")
+    Log.d(TAG, "before lock")
     synchronized(locker) {
       while (isLocked) {
         /* If this thread already hold the lock */
@@ -155,30 +154,30 @@ internal constructor(internal val layerDevice: Any, userCallbacks: SCardReaderLi
           throw Exception(
               "Could not setNewState multiples actions from same thread: ${Thread.currentThread().name}")
         }
-        Timber.d("waiting...")
+        Log.d(TAG, "waiting...")
         locker.wait()
-        Timber.d("wait done")
+        Log.d(TAG, "wait done")
       }
       isLocked = true
       idThreadLocking = Thread.currentThread().id
-      Timber.d("after lock")
+      Log.d(TAG, "after lock")
     }
   }
 
   internal fun exitExclusive() {
-    Timber.d("before unlock")
+    Log.d(TAG, "before unlock")
     synchronized(locker) {
       if (isLocked) {
-        Timber.d("unlocking...")
+        Log.d(TAG, "unlocking...")
         isLocked = false
         try {
           locker.notifyAll()
         } catch (e: Exception) {
-          Timber.e("Could not notifyAll, Exception: ${e.message}")
+          Log.e(TAG, "Could not notifyAll, Exception: ${e.message}")
         }
       }
     }
-    Timber.d("after unlock")
+    Log.d(TAG, "after unlock")
   }
 
   internal abstract fun create(ctx: Context)
@@ -282,7 +281,7 @@ internal constructor(internal val layerDevice: Any, userCallbacks: SCardReaderLi
    * @param callback () -> Lambda to callback to be called
    */
   internal fun postCallback(callback: () -> Unit) {
-    Timber.d("Post callback")
+    Log.d(TAG, "Post callback")
     callbacksHandler.post { callback() }
   }
 
@@ -294,7 +293,7 @@ internal constructor(internal val layerDevice: Any, userCallbacks: SCardReaderLi
     if (isSleeping) {
       commLayer.wakeUp()
     } else {
-      Timber.d("Device is not sleeping, waking-up is useless")
+      Log.d(TAG, "Device is not sleeping, waking-up is useless")
     }
   }
 
@@ -307,7 +306,7 @@ internal constructor(internal val layerDevice: Any, userCallbacks: SCardReaderLi
     synchronized(locker) {
       if (!isLocked && !isSleeping && machineState.currentState == State.Idle) {
         /* Check if there are some cards to connect */
-        Timber.d("There is ${slotsToConnect.size} card(s) to connect")
+        Log.d(TAG, "There is ${slotsToConnect.size} card(s) to connect")
 
         if (slotsToConnect.size > 0) {
           if (!slotsToConnect[0].cardError) {
@@ -316,14 +315,14 @@ internal constructor(internal val layerDevice: Any, userCallbacks: SCardReaderLi
             machineState.setNewState(State.WritingCmdAndWaitingResp)
             commLayer.writeCommand(ccidCommand)
           } else {
-            Timber.w("Error on slot ${slotsToConnect[0].name}, do not try to connect on card")
+            Log.w(TAG, "Error on slot ${slotsToConnect[0].name}, do not try to connect on card")
             slotsToConnect.removeAt(0)
           }
         } else {
-          Timber.w("slotsToConnect list is empty")
+          Log.d(TAG, "slotsToConnect list is empty")
         }
       } else {
-        Timber.w("Could not call connecting to card")
+        Log.w(TAG, "Could not call connecting to card")
       }
     }
   }

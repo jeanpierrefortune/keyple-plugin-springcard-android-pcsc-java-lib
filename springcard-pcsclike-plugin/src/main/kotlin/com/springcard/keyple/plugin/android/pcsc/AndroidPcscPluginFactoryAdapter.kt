@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2018-2018 SpringCard - www.springcard.com
+ * Copyright (c)2022 SpringCard - www.springcard.com.com
  * All right reserved
  * This software is covered by the SpringCard SDK License Agreement - see LICENSE.txt
  */
@@ -11,25 +11,28 @@ import org.eclipse.keyple.core.plugin.PluginApiProperties
 import org.eclipse.keyple.core.plugin.spi.PluginFactorySpi
 import org.eclipse.keyple.core.plugin.spi.PluginSpi
 
-internal class AndroidPcscPluginFactoryAdapter internal constructor(var context: Context) :
-    AndroidPcscPluginFactory, PluginFactorySpi {
+/**
+ * Implementation of the AndroidPcscPluginFactory
+ * @since 1.0.0
+ */
+internal class AndroidPcscPluginFactoryAdapter
+internal constructor(
+    private val deviceType: AndroidPcscPluginFactory.DeviceType,
+    val context: Context
+) : AndroidPcscPluginFactory, PluginFactorySpi {
+  private val PLUGIN_NAME = "AndroidPcscPlugin"
+  private val name = "${PLUGIN_NAME}_${deviceType.name}"
 
-  //    @Throws(ReaderIOException::class)
-  //    suspend fun init(activity: Activity): AndroidPcscPluginFactoryAdapter {
-  //        // TODO init reader:
-  //        /* val started = AndroidPcscReader.init(activity)
-  //        return if (started == true) {
-  //            this
-  //        } else {
-  //            throw ReaderIOException("Could not init Bluebird Adapter")
-  //        }
-  //        */
-  //        return this
-  //    }
+  override fun getPluginName(): String {
+    return name
+  }
 
-  override fun getPluginName(): String = AndroidPcscPlugin.PLUGIN_NAME
-
-  override fun getPlugin(): PluginSpi = AndroidPcscPluginAdapter(context)
+  /** Instantiates the plugin according to the specified link. */
+  override fun getPlugin(): PluginSpi =
+      when (deviceType) {
+        AndroidPcscPluginFactory.DeviceType.BLE -> AndroidBlePcscPluginAdapter(name, context)
+        AndroidPcscPluginFactory.DeviceType.USB -> AndroidUsbPcscPluginAdapter(name, context)
+      }
 
   override fun getCommonApiVersion(): String = CommonApiProperties.VERSION
 

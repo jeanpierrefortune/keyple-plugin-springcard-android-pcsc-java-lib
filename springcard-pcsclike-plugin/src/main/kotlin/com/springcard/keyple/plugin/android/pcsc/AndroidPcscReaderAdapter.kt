@@ -1,17 +1,14 @@
 /*
- * Copyright (c) 2018-2018-2018 SpringCard - www.springcard.com
+ * Copyright (c)2022 SpringCard - www.springcard.com.com
  * All right reserved
  * This software is covered by the SpringCard SDK License Agreement - see LICENSE.txt
  */
 package com.springcard.keyple.plugin.android.pcsc
 
 import android.os.ConditionVariable
-import com.springcard.keyple.plugin.android.pcsc.AndroidPcscReader.Companion.WAIT_CARD_CONNECT_TIMEOUT
-import com.springcard.keyple.plugin.android.pcsc.AndroidPcscReader.Companion.WAIT_RESPONSE_TIMEOUT
 import com.springcard.pcsclike.SCardReader
 import org.eclipse.keyple.core.plugin.CardIOException
 import org.eclipse.keyple.core.plugin.ReaderIOException
-import org.eclipse.keyple.core.plugin.spi.reader.ConfigurableReaderSpi
 import org.eclipse.keyple.core.plugin.spi.reader.observable.ObservableReaderSpi
 import org.eclipse.keyple.core.plugin.spi.reader.observable.state.insertion.WaitForCardInsertionBlockingSpi
 import org.eclipse.keyple.core.plugin.spi.reader.observable.state.processing.DontWaitForCardRemovalDuringProcessingSpi
@@ -19,22 +16,27 @@ import org.eclipse.keyple.core.plugin.spi.reader.observable.state.removal.WaitFo
 import org.eclipse.keyple.core.util.ByteArrayUtil
 import timber.log.Timber
 
-/** Keyple SE Reader's Implementation for the Bluebird (SAM access) reader */
-@Suppress("INVISIBLE_ABSTRACT_MEMBER_FROM_SUPER_WARNING")
-class AndroidPcscReaderAdapter(val sCardReader: SCardReader) :
+/**
+ * Andorid Pcsc Reader implementation
+ * @since 1.0.0
+ */
+internal class AndroidPcscReaderAdapter(val sCardReader: SCardReader) :
     AndroidPcscReader,
-    ConfigurableReaderSpi,
     ObservableReaderSpi,
     WaitForCardInsertionBlockingSpi,
     DontWaitForCardRemovalDuringProcessingSpi,
     WaitForCardRemovalBlockingSpi {
 
-  private lateinit var cardResponse: ByteArray
-  private var isCardPresent: Boolean = false
   private val name: String = sCardReader.name
+  private var isContactless: Boolean = false
+  private var isCardPresent: Boolean = false
+
+  private val WAIT_RESPONSE_TIMEOUT: Long = 5000
+  private val WAIT_CARD_CONNECT_TIMEOUT: Long = 5000
   private val waitCardStatusChange = ConditionVariable()
-  private val waitCardResponse = ConditionVariable()
   private val waitCardConnect = ConditionVariable()
+  private val waitCardResponse = ConditionVariable()
+  private lateinit var cardResponse: ByteArray
 
   override fun getName(): String {
     return name
@@ -53,70 +55,56 @@ class AndroidPcscReaderAdapter(val sCardReader: SCardReader) :
 
   override fun closePhysicalChannel() {
     Timber.v("Close physical channel")
-    sCardReader.channel.disconnect()
+    // may be invoked at any time, run in a separate thread
+    synchronized(sCardReader) { Runnable { sCardReader.channel.disconnect() } }
   }
 
   override fun isPhysicalChannelOpen(): Boolean {
     val isCardConnected = sCardReader.cardConnected
-    Timber.v("Physical channel is open: $isCardConnected")
+    Timber.v("Physical channel is open: %b", isCardConnected)
     return isCardConnected
   }
 
   override fun checkCardPresence(): Boolean {
-    Timber.v("Card present: $isCardPresent")
+    isCardPresent = sCardReader.cardPresent
+    Timber.v("Card present: %b", isCardPresent)
     return isCardPresent
   }
 
   override fun getPowerOnData(): String {
-    val powerOnDataHex = ByteArrayUtil.toHex(sCardReader.channel.atr)
-    Timber.v("Power on data: $powerOnDataHex")
-    return powerOnDataHex
+    return ByteArrayUtil.toHex(sCardReader.channel.atr)
   }
 
   override fun transmitApdu(apduIn: ByteArray?): ByteArray {
     if (apduIn != null) {
-      Timber.v("APDUC: ${ByteArrayUtil.toHex(apduIn)}")
       sCardReader.channel.transmit(apduIn)
       waitCardResponse.block(WAIT_RESPONSE_TIMEOUT)
       waitCardResponse.close()
-      Timber.v("APDUR: ${ByteArrayUtil.toHex(cardResponse)}")
+      synchronized(cardResponse) {
+        if (cardResponse.isEmpty()) {
+          throw CardIOException("[${this.name}]: not response received from the card.")
+        }
+      }
       return cardResponse
     } else {
-      throw CardIOException(this.getName() + ": null channel.")
+      throw ReaderIOException("[${this.name}]: null channel.")
     }
   }
 
   override fun isContactless(): Boolean {
-    return true
+    return isContactless
   }
 
   override fun onUnregister() {
-    Timber.i("Unregister reader '$name'")
+    Timber.i("Unregister reader '%s'", name)
   }
 
   override fun onStartDetection() {
-    Timber.i("Starting card detection on reader '$name'")
+    Timber.i("Starting card detection on reader '%s'", name)
   }
 
   override fun onStopDetection() {
-    Timber.i("Stopping card detection on reader '$name'")
-  }
-
-  override fun isProtocolSupported(readerProtocol: String?): Boolean {
-    return true
-  }
-
-  override fun activateProtocol(readerProtocol: String?) {
-    // TODO("Not yet implemented")
-  }
-
-  override fun deactivateProtocol(readerProtocol: String?) {
-    // TODO("Not yet implemented")
-  }
-
-  override fun isCurrentProtocol(readerProtocol: String?): Boolean {
-    // TODO("Not yet implemented")
-    return true
+    Timber.i("Stopping card detection on reader '%s'", name)
   }
 
   override fun waitForCardRemoval() {
@@ -141,19 +129,35 @@ class AndroidPcscReaderAdapter(val sCardReader: SCardReader) :
     waitCardStatusChange.close()
   }
 
-  fun onCardPresenceChange(isCardPresent: Boolean) {
-    Timber.d("Reader '$name', card presence changed: $isCardPresent")
-    this.isCardPresent = isCardPresent
-    waitCardStatusChange.open()
+  override fun setContactless(contactless: Boolean): AndroidPcscReader {
+    isContactless = contactless
+    return this
   }
 
-  fun onCardResponseReceived(cardResponse: ByteArray) {
-    Timber.d("Reader '$name', ${cardResponse.size} bytes received from the card")
-    this.cardResponse = cardResponse
-    waitCardResponse.open()
+  fun onCardPresenceChange(isCardPresent: Boolean) {
+    Timber.e("Reader '%s', card presence changed: %b", name, isCardPresent)
+    this.isCardPresent = isCardPresent
+    waitCardStatusChange.open()
+    if (!isCardPresent) {
+      // to shorten a possible transmission of apdu
+      Timber.e("Shorten transmit APDU")
+      synchronized(this) { this.cardResponse = byteArrayOf() }
+      // waitCardResponse.open()
+    }
   }
 
   fun onCardConnected() {
     waitCardConnect.open()
+  }
+
+  fun onCardResponseReceived(cardResponse: ByteArray) {
+    Timber.d("Reader '%s', %d bytes received from the card", name, cardResponse.size)
+    synchronized(this) { this.cardResponse = cardResponse }
+    waitCardResponse.open()
+  }
+
+  fun onReaderOrCardError() {
+    synchronized(this) { this.cardResponse = byteArrayOf() }
+    waitCardResponse.open()
   }
 }

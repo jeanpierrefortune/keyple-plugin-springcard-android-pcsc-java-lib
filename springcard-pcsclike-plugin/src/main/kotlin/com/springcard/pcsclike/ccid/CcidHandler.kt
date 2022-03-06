@@ -1,17 +1,17 @@
 /*
- * Copyright (c) 2018-2018-2018 SpringCard - www.springcard.com
+ * Copyright (c)2022 SpringCard - www.springcard.com.com
  * All right reserved
  * This software is covered by the SpringCard SDK License Agreement - see LICENSE.txt
  */
 package com.springcard.pcsclike.ccid
 
+import android.util.Log
 import com.springcard.pcsclike.SCardError
 import com.springcard.pcsclike.SCardReader
 import com.springcard.pcsclike.SCardReaderList
-import com.springcard.pcsclike.utils.toHexString
+import com.springcard.pcsclike.utils.*
 import java.lang.Exception
 import kotlin.experimental.and
-import timber.log.Timber
 
 internal class CcidHandler(private val scardReaderList: SCardReaderList) {
 
@@ -26,6 +26,9 @@ internal class CcidHandler(private val scardReaderList: SCardReaderList) {
   var authenticateOk: Boolean = false
   internal lateinit var ccidSecure: CcidSecure
     private set
+
+  private val TAG: String
+    get() = this::class.java.simpleName
 
   /* Secondary Constructor */
 
@@ -94,12 +97,12 @@ internal class CcidHandler(private val scardReaderList: SCardReaderList) {
 
     if (frame.size < 10) {
       val msg = "Too few data to build a CCID response (${frame.toHexString()})"
-      Timber.e(msg)
+      Log.e(TAG, msg)
       throw Exception(msg)
     }
 
     if (frame.size - CcidFrame.HEADER_SIZE != response.length) {
-      Timber.d("Frame not complete, excepted length = ${response.length}")
+      Log.d(TAG, "Frame not complete, excepted length = ${response.length}")
     }
 
     if (isSecure && authenticateOk) {
@@ -113,7 +116,7 @@ internal class CcidHandler(private val scardReaderList: SCardReaderList) {
     if (sequenceNumber != response.sequenceNumber) {
       val msg =
           "Sequence number in frame (${response.sequenceNumber}) does not match sequence number in cache ($sequenceNumber)"
-      Timber.e(msg)
+      Log.e(TAG, msg)
       throw Exception(msg)
     }
 
@@ -149,7 +152,8 @@ internal class CcidHandler(private val scardReaderList: SCardReaderList) {
 
     /* If device is sleeping all cards are considered removed */
     if (scardReaderList.isSleeping) {
-      Timber.i(
+      Log.i(
+          TAG,
           "ScardReaderList is sleeping, do not read CCID status data, consider all cards not connected and not powered")
       for (i in 0 until scardReaderList.readers.size) {
         scardReaderList.readers[i].cardPowered = false
@@ -165,7 +169,7 @@ internal class CcidHandler(private val scardReaderList: SCardReaderList) {
         if (slotNumber < scardReaderList.readers.size) {
 
           val slotStatus = (data[i].toInt() shr j * 2) and 0x03
-          Timber.i("Slot $slotNumber")
+          Log.i(TAG, "Slot $slotNumber")
 
           val slot = scardReaderList.readers[slotNumber]
 
@@ -182,13 +186,13 @@ internal class CcidHandler(private val scardReaderList: SCardReaderList) {
 
           when (slotStatus) {
             SCardReader.SlotStatus.Absent.code ->
-                Timber.i("card absent, no change since last notification")
+                Log.i(TAG, "card absent, no change since last notification")
             SCardReader.SlotStatus.Present.code ->
-                Timber.i("card present, no change since last notification")
-            SCardReader.SlotStatus.Removed.code -> Timber.i("card removed notification")
-            SCardReader.SlotStatus.Inserted.code -> Timber.i("card inserted notification")
+                Log.i(TAG, "card present, no change since last notification")
+            SCardReader.SlotStatus.Removed.code -> Log.i(TAG, "card removed notification")
+            SCardReader.SlotStatus.Inserted.code -> Log.i(TAG, "card inserted notification")
             else -> {
-              Timber.w("Impossible value : $slotStatus")
+              Log.w(TAG, "Impossible value : $slotStatus")
             }
           }
 
@@ -203,14 +207,14 @@ internal class CcidHandler(private val scardReaderList: SCardReaderList) {
 
           /* Update list of slots to connect (if there is no card error) */
           if (cardRemoved && scardReaderList.slotsToConnect.contains(slot)) {
-            Timber.d("Card gone on slot ${slot.index}, removing slot from listReadersToConnect")
+            Log.d(TAG, "Card gone on slot ${slot.index}, removing slot from listReadersToConnect")
             scardReaderList.slotsToConnect.remove(slot)
             /* Reset cardError flag */
             slot.cardError = false
           } else if (cardInserted &&
               slot.channel.atr.isEmpty() &&
               !scardReaderList.slotsToConnect.contains(slot)) {
-            Timber.d("Card arrived on slot ${slot.index}, adding slot to listReadersToConnect")
+            Log.d(TAG, "Card arrived on slot ${slot.index}, adding slot to listReadersToConnect")
             scardReaderList.slotsToConnect.add(slot)
             /* Reset cardError flag */
             slot.cardError = false
@@ -243,25 +247,25 @@ internal class CcidHandler(private val scardReaderList: SCardReaderList) {
 
     when (cardStatus) {
       0b00 -> {
-        Timber.i("A Card is present and active (powered ON)")
+        Log.d(TAG, "A Card is present and active (powered ON)")
         slot.cardPresent = true
         slot.cardPowered = true
       }
       0b01 -> {
-        Timber.i("A Card is present and inactive (powered OFF or hardware error)")
+        Log.d(TAG, "A Card is present and inactive (powered OFF or hardware error)")
         slot.cardPresent = true
         slot.cardPowered = false
       }
       0b10 -> {
-        Timber.i("No card present (slot is empty)")
+        Log.d(TAG, "No card present (slot is empty)")
         slot.cardPresent = false
         slot.cardPowered = false
       }
       0b11 -> {
-        Timber.i("Reserved for future use")
+        Log.i(TAG, "Reserved for future use")
       }
       else -> {
-        Timber.w("Impossible value for cardStatus : $slotStatus")
+        Log.w(TAG, "Impossible value for cardStatus : $slotStatus")
       }
     }
   }
@@ -284,18 +288,18 @@ internal class CcidHandler(private val scardReaderList: SCardReaderList) {
 
     when (commandStatus) {
       0b00 -> {
-        Timber.i("Command processed without error")
+        Log.d(TAG, "Command processed without error")
         return SCardError(SCardError.ErrorCodes.NO_ERROR)
       }
       0b01 -> {
-        Timber.i("Command failed (error code is provided in the SlotError field)")
+        Log.i(TAG, "Command failed (error code is provided in the SlotError field)")
       }
       else -> {
-        Timber.w("Impossible value for commandStatus : $slotStatus")
+        Log.w(TAG, "Impossible value for commandStatus : $slotStatus")
       }
     }
 
-    Timber.e("Error in CCID Header: 0x${String.format("%02X", slotError)}")
+    Log.e(TAG, "Error in CCID Header: 0x${String.format("%02X", slotError)}")
 
     var errorCode = SCardError.ErrorCodes.NO_ERROR
     var detail = ""
@@ -358,7 +362,7 @@ internal class CcidHandler(private val scardReaderList: SCardReaderList) {
         detail = "Command not supported "
       }
       else -> {
-        Timber.w("CCID Error code not handled")
+        Log.w(TAG, "CCID Error code not handled")
         errorCode = SCardError.ErrorCodes.OTHER_ERROR
         detail = "SpringCore specific CCID error: 0x${String.format("%02X", slotError)}"
       }

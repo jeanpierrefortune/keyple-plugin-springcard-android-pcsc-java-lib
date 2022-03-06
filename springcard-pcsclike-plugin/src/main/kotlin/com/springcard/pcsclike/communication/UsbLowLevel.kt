@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2018-2018 SpringCard - www.springcard.com
+ * Copyright (c)2022 SpringCard - www.springcard.com.com
  * All right reserved
  * This software is covered by the SpringCard SDK License Agreement - see LICENSE.txt
  */
@@ -9,29 +9,25 @@ import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
-import android.hardware.usb.UsbConstants
-import android.hardware.usb.UsbDevice
-import android.hardware.usb.UsbDeviceConnection
-import android.hardware.usb.UsbEndpoint
-import android.hardware.usb.UsbManager
-import android.hardware.usb.UsbRequest
+import android.hardware.usb.*
 import android.os.Build
 import android.os.Handler
 import android.os.HandlerThread
+import android.util.Log
 import androidx.annotation.RequiresApi
 import com.springcard.pcsclike.SCardError
 import com.springcard.pcsclike.SCardReader
 import com.springcard.pcsclike.SCardReaderList
 import com.springcard.pcsclike.ccid.CcidFrame
-import com.springcard.pcsclike.utils.hexStringToByteArray
-import com.springcard.pcsclike.utils.toHexString
+import com.springcard.pcsclike.utils.*
 import java.nio.ByteBuffer
-import timber.log.Timber
 
 internal class UsbLowLevel(
     private val scardReaderList: SCardReaderList,
     private val usbDevice: UsbDevice
 ) : LowLevelLayer {
+
+  private val TAG = this::class.java.simpleName
 
   /* useful constants */
   private val BULK_TIMEOUT_MS: Int = 100
@@ -80,7 +76,7 @@ internal class UsbLowLevel(
       usbDeviceConnection = usbManager.openDevice(usbDevice)
       descriptors = usbDeviceConnection.rawDescriptors
     } catch (e: IllegalArgumentException) {
-      Timber.e("Could not open device $usbDevice")
+      Log.e(TAG, "Could not open device $usbDevice")
       return
     }
 
@@ -104,25 +100,25 @@ internal class UsbLowLevel(
     /* Try to find the CCID interface */
     for (indexInterface in 0 until usbDevice.interfaceCount) {
 
-      Timber.d("Interface $indexInterface")
+      Log.d(TAG, "Interface $indexInterface")
 
       val usbInterface = usbDevice.getInterface(indexInterface)
 
       /* Check for endpoint */
       if (usbInterface.endpointCount == 0) {
-        Timber.w("Could not find endpoint")
+        Log.w(TAG, "Could not find endpoint")
         break
       }
 
       /* Grab endpoints */
       if (usbInterface.endpointCount != 3) {
-        Timber.w("CCID interface must only have 3 endpoints")
+        Log.w(TAG, "CCID interface must only have 3 endpoints")
         break
       }
 
       /* Check interface and device class */
       if ((usbInterface.interfaceClass == 0x0B || usbInterface.interfaceClass == 0x00)) {
-        Timber.w("CCID interface found")
+        Log.w(TAG, "CCID interface found")
         for (i in 0 until usbInterface.endpointCount) {
           val epCheck = usbInterface.getEndpoint(i)
           /* look for BULK type */
@@ -142,13 +138,13 @@ internal class UsbLowLevel(
           }
         }
       } else {
-        Timber.w("Wrong interface class: ${usbInterface.interfaceClass.toUByte().toHexString()}")
+        Log.w(TAG, "Wrong interface class: ${usbInterface.interfaceClass.toByte().toHexString()}")
         break
       }
     }
 
     if (!::interruptIn.isInitialized || !::bulkOut.isInitialized || !::bulkIn.isInitialized) {
-      Timber.e("Device ${usbDevice.productName} miss one or more endpoint")
+      Log.e(TAG, "Device ${usbDevice.productName} miss one or more endpoint")
       scardReaderList.commLayer.onCommunicationError(
           SCardError(
               SCardError.ErrorCodes.DUMMY_DEVICE,
@@ -232,7 +228,7 @@ internal class UsbLowLevel(
       /* CCID type ? */
       if (dlen == 0x36 && dtype == 0x21) {
         val slotCount = descriptors[curPos + 4] + 1
-        Timber.d("Descriptor found, slotCount = $slotCount")
+        Log.d(TAG, "Descriptor found, slotCount = $slotCount")
         return slotCount
       }
       curPos += dlen
@@ -295,7 +291,7 @@ internal class UsbLowLevel(
   }
 
   override fun close() {
-    Timber.d("Close")
+    Log.d(TAG, "Close")
     // TODO CRA close USB
   }
 
@@ -306,19 +302,19 @@ internal class UsbLowLevel(
   /* USB Entries / Outputs */
 
   private fun onInterruptIn(data: ByteArray) {
-    Timber.d("Received data on interruptIn, value : ${data.toHexString()}")
+    Log.d(TAG, "Received data on interruptIn, value : ${data.toHexString()}")
     /* Update readers status */
     val readCcidStatus = data.drop(1).toByteArray()
     scardReaderList.commLayer.onStatusReceived(readCcidStatus)
   }
 
   private fun onBulkIn(data: ByteArray) {
-    Timber.d("Read ${data.toHexString()} on bulkIn")
+    Log.d(TAG, "Read ${data.toHexString()} on bulkIn")
     scardReaderList.commLayer.onResponseReceived(data)
   }
 
   private fun bulkOutTransfer(data: ByteArray) {
-    Timber.d("Write ${data.toHexString()} on bulkOut")
+    Log.d(TAG, "Write ${data.toHexString()} on bulkOut")
     usbDeviceConnection.bulkTransfer(bulkOut, data, data.size, BULK_TIMEOUT_MS)
   }
 
@@ -364,7 +360,7 @@ internal class UsbLowLevel(
           }
         }
         val request = usbDeviceConnection.requestWait() ?: break
-        Timber.d("${request.clientData}")
+        Log.d(TAG, "${request.clientData}")
 
         if (request.endpoint === interruptIn) {
           if (interruptBuffer.get(0) == RDR_to_PC_NotifySlotChange) {
@@ -377,7 +373,7 @@ internal class UsbLowLevel(
 
             /* Check if we received expected size */
             if (recvSize < size + 1) {
-              Timber.d("Buffer not complete, expected ${size + 1} bytes, received $recvSize byte")
+              Log.d(TAG, "Buffer not complete, expected ${size +1} bytes, received $recvSize byte")
               break
             }
 
@@ -394,7 +390,7 @@ internal class UsbLowLevel(
             /* Post message to USB layer thread */
             handler.post { onInterruptIn(ccidStatus.toByteArray()) }
           } else {
-            Timber.d("Unknown interruptIn" + Integer.toHexString(interruptBuffer.get(0).toInt()))
+            Log.d(TAG, "Unknown interruptIn" + Integer.toHexString(interruptBuffer.get(0).toInt()))
           }
 
           /* enable receive again */
@@ -412,7 +408,8 @@ internal class UsbLowLevel(
 
           /* Check if we received expected size */
           if (recvSize < ccidSize + CcidFrame.HEADER_SIZE) {
-            Timber.d(
+            Log.d(
+                TAG,
                 "Buffer not complete, expected ${ccidSize + CcidFrame.HEADER_SIZE} bytes, received $recvSize byte")
             break
           }
@@ -430,7 +427,7 @@ internal class UsbLowLevel(
       interruptRequest.close()
       inRequest.close()
 
-      Timber.d("localThread exit ")
+      Log.d(TAG, "localThread exit ")
     }
   }
 }

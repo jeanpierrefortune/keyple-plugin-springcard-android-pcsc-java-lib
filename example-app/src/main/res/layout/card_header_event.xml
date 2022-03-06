@@ -28,6 +28,6 @@
             android:textAlignment="center"
             android:textSize="18sp"
             android:textColor="@color/textColorPrimary"
-            tools:text="Ceci est un test" />
+            tools:text="Header" />
     </androidx.cardview.widget.CardView>
 </androidx.constraintlayout.widget.ConstraintLayout>

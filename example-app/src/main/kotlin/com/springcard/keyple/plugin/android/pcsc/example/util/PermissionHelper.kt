@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2018-2018 SpringCard - www.springcard.com
+ * Copyright (c)2022 SpringCard - www.springcard.com.com
  * All right reserved
  * This software is covered by the SpringCard SDK License Agreement - see LICENSE.txt
  */
@@ -9,27 +9,25 @@ import android.app.Activity
 import android.content.pm.PackageManager
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
+import timber.log.Timber
 
 object PermissionHelper {
-
-  const val MY_PERMISSIONS_REQUEST_ALL = 1000
 
   private fun isPermissionGranted(activity: Activity, permission: String): Boolean {
     return ContextCompat.checkSelfPermission(activity, permission) ==
         PackageManager.PERMISSION_GRANTED
   }
 
-  fun checkPermission(context: Activity, permissions: Array<String>): Boolean {
+  fun checkPermission(context: Activity, permissions: Array<String>, requestCode: Int): Boolean {
     val permissionDenied = permissions.filter { !isPermissionGranted(context, it) }
 
     if (permissionDenied.isNotEmpty()) {
-      var position = 0
       val permissionsToAsk = arrayOfNulls<String>(permissionDenied.size)
-      for (permission in permissionDenied) {
+      for ((position, permission) in permissionDenied.withIndex()) {
         permissionsToAsk[position] = permission
-        position++
+        Timber.i("Permission %s denied", permission)
       }
-      ActivityCompat.requestPermissions(context, permissionsToAsk, MY_PERMISSIONS_REQUEST_ALL)
+      ActivityCompat.requestPermissions(context, permissionsToAsk, requestCode)
       return false
     }
     return true

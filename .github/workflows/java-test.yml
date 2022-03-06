@@ -27,4 +27,13 @@ jobs:
         run: ./.github/scripts/check_version.sh
       - name: Build and Test
         working-directory: .
-        run: ./gradlew build test --info --stacktrace
+        run: ./gradlew build test dokkaHtml --info --stacktrace
+      - name: Prepare Dokka doc locally
+        working-directory: .
+        run: ./.github/scripts/prepare_javadoc.sh
+      - name: Deploy Dokka doc to gh-pages
+        uses: peaceiris/actions-gh-pages@v3
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./${{ github.event.repository.name }}
+          enable_jekyll: true

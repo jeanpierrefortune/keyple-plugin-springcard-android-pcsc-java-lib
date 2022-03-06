@@ -1,3 +1,4 @@
+import java.util.Properties
 ///////////////////////////////////////////////////////////////////////////////
 //  GRADLE CONFIGURATION
 ///////////////////////////////////////////////////////////////////////////////
@@ -14,27 +15,50 @@ plugins {
 val kotlinVersion: String by project
 val archivesBaseName: String by project
 android {
-    compileSdkVersion(29)
+    compileSdkVersion(31)
     buildToolsVersion("30.0.2")
+
+    signingConfigs {
+        create("default") {
+            val properties = Properties().apply {
+                load(File("signing.properties").reader())
+            }
+            storeFile = File(properties.getProperty("storeFilePath"))
+            storePassword = properties.getProperty("storePassword")
+            keyPassword = properties.getProperty("keyPassword")
+            keyAlias = properties.getProperty("keyAlias")
+        }
+    }
 
     defaultConfig {
         applicationId("com.springcard.keyple.plugin.android.pcsc.example")
-        minSdkVersion(21)
-        targetSdkVersion(29)
+        minSdkVersion(26)
+        targetSdkVersion(31)
         versionName(project.version.toString())
-
+        versionCode(3)
         testInstrumentationRunner("android.support.test.runner.AndroidJUnitRunner")
         multiDexEnabled = true
     }
 
     buildTypes {
-        getByName("release") {
+        getByName("debug") {
             minifyEnabled(false)
             isTestCoverageEnabled = true
+            isDebuggable = true
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
             )
+        }
+        getByName("release") {
+            minifyEnabled(true)
+            isTestCoverageEnabled = false
+            isDebuggable = false
+            proguardFiles(
+                getDefaultProguardFile("proguard-android-optimize.txt"),
+                "proguard-rules.pro"
+            )
+//            signingConfig = signingConfigs.getByName("default")
         }
     }
 
@@ -74,7 +98,7 @@ dependencies {
     implementation("org.eclipse.keyple:keyple-service-java-lib:2.0.1")
     implementation("org.eclipse.keyple:keyple-service-resource-java-lib:2.0.1")
     implementation("org.eclipse.keyple:keyple-card-calypso-java-lib:2.1.1-SNAPSHOT") { isChanging = true }
-    implementation("org.eclipse.keyple:keyple-util-java-lib:2.+") { isChanging = true }
+    implementation("org.eclipse.keyple:keyple-util-java-lib:2.1.0-SNAPSHOT") { isChanging = true }
 
     /*
     Android components
@@ -90,8 +114,7 @@ dependencies {
     */
     implementation("org.slf4j:slf4j-api:1.7.32")
     implementation("com.jakewharton.timber:timber:4.7.1")
-    implementation("com.arcao:slf4j-timber:3.1@aar") //SLF4J binding for Timber
-
+    implementation("at.favre.lib:slf4j-timber:1.0.1") //SLF4J binding for Timber
     /*
     Kotlin
     */
