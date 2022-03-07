@@ -25,7 +25,7 @@
         <activity
             android:name="com.springcard.keyple.plugin.android.pcsc.example.activity.MainActivity"
             android:clearTaskOnLaunch="true"
-            android:label="Keyple SpringCard PcscLike Demo"
+            android:label="Keyple SpringCard Pcsc Demo"
             android:screenOrientation="portrait"
             android:exported="true">
             <intent-filter>

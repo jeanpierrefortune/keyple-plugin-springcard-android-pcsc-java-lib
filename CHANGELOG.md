@@ -7,5 +7,5 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 This is the initial release.
 
-[unreleased]: https://github.com/springcard/keyple-plugin-springcard-android-pcsc-java-lib/compare/1.0.0...HEAD
+[unreleased]: https://github.com/springcard/keyple-plugin-springcard-android-pcsc-lib/compare/1.0.0...HEAD
 

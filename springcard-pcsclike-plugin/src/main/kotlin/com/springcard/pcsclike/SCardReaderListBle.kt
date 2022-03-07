@@ -8,7 +8,6 @@ package com.springcard.pcsclike
 import android.bluetooth.BluetoothDevice
 import android.content.Context
 import android.os.Build
-import android.util.Log
 import androidx.annotation.RequiresApi
 import com.springcard.pcsclike.ccid.*
 import com.springcard.pcsclike.communication.*
@@ -19,7 +18,6 @@ internal constructor(layerDevice: BluetoothDevice, callbacks: SCardReaderListCal
     SCardReaderList(layerDevice as Any, callbacks) {
 
   override fun create(ctx: Context) {
-    Log.i("PcscLikeLibrary", "Lib rev")
     if (layerDevice is BluetoothDevice) {
       commLayer = BleLayer(this, layerDevice)
       commLayer.connect(ctx)
@@ -27,7 +25,6 @@ internal constructor(layerDevice: BluetoothDevice, callbacks: SCardReaderListCal
   }
 
   override fun create(ctx: Context, secureConnexionParameters: CcidSecureParameters) {
-    Log.i("PcscLikeLibrary", "Lib rev")
     if (layerDevice is BluetoothDevice) {
       commLayer = BleLayer(this, layerDevice)
       ccidHandler = CcidHandler(this, secureConnexionParameters)
