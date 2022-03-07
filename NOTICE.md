@@ -1,4 +1,4 @@
-# Notices for "Keyple Plugin SpringCard Android PcscLike Java Lib" Java implementation
+# Notices for "Keyple Plugin SpringCard Android Pcsc Lib" Java implementation
 
 This content is produced and maintained by **SpringCard**.
 

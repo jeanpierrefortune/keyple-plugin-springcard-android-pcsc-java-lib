@@ -7,7 +7,6 @@ package com.springcard.pcsclike
 
 import android.content.Context
 import android.hardware.usb.UsbDevice
-import android.util.Log
 import com.springcard.pcsclike.ccid.*
 import com.springcard.pcsclike.communication.*
 
@@ -16,7 +15,6 @@ internal constructor(layerDevice: UsbDevice, callbacks: SCardReaderListCallback)
     SCardReaderList(layerDevice as Any, callbacks) {
 
   override fun create(ctx: Context) {
-    Log.i("PcscLikeLibrary", "Lib rev")
     if (layerDevice is UsbDevice) {
       commLayer = UsbLayer(this, layerDevice)
       commLayer.connect(ctx)
@@ -24,7 +22,6 @@ internal constructor(layerDevice: UsbDevice, callbacks: SCardReaderListCallback)
   }
 
   override fun create(ctx: Context, secureConnexionParameters: CcidSecureParameters) {
-    Log.i("PcscLikeLibrary", "Lib rev")
     throw NotImplementedError(
         "Cannot create SCardReaderListUsb with secure parameters for the moment")
   }
